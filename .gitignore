@@ -1,0 +1,17 @@
+# OS crud
+.DS_Store
+Thumbs.db
+desktop.ini
+Icon*
+
+# py crud
+__pycache__/
+*.pyc
+
+# Bot dumps
+logs/
+build/
+*.db
+
+# Secrets
+private/
