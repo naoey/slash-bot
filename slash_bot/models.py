@@ -43,7 +43,6 @@ db.create_tables([
     User,
     Server,
     Channel,
-    RiotUser,
     BotStats,
 ], safe=True)
 
