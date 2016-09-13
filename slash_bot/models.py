@@ -39,6 +39,19 @@ class BotStats(SlashBotDatabase):
     run_time = DateField(primary_key=True)
     stats_str = TextField(null=False)
 
+class RiotUser(SlashBotDatabase):
+    summoner_name = CharField()
+    region = CharField()
+    user = ForeignKeyField(User, related_name="riotusers")
+    date_registered = DateField(help_text="Date this username was registered with the bot")
+    server_registered = ForeignKeyField(Server, related_name="registration_server")
+    channel_registered = ForeignKeyField(Channel, related_name="channel_registered")
+    last_update_data = TextField(null=True)
+    last_updated = DateField(null=True)
+
+class Meta:
+    primary_key = CompositeKey("summoner_name", "region", "user")
+
 db.create_tables([
     User,
     Server,
