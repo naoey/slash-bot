@@ -40,6 +40,7 @@ class BotStats(SlashBotDatabase):
     stats_str = TextField(null=False)
 
 class RiotUser(SlashBotDatabase):
+    summoner_id = CharField(null=True)
     summoner_name = CharField()
     region = CharField()
     user = ForeignKeyField(User, related_name="riotusers")

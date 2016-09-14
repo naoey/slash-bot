@@ -28,7 +28,7 @@ LOG_CONFIG = {
         },
         "error": {
             "format": "%(levelname)s at %(asctime)s in %(funcName)s in %(filename) at line %(lineno)d: %(message)s"
-        }
+        },
     },
     "handlers": {
         "console": {
@@ -44,7 +44,7 @@ LOG_CONFIG = {
         },
         # "discord": {
         #     "class": "DiscordLogHandler",
-        #     "formatter": "info",
+        #     "formatter": "discord_info",
         #     "level": logging.INFO
         # }
     },
@@ -69,8 +69,14 @@ class SlashBot(discord.Client):
         with open(config.PATHS["discord_creds"], "r") as cf_d:
             config.GLOBAL["discord"] = json.load(cf_d)
 
-    def run(self):
         config.GLOBAL["bot"] = self
+
+        # discord_logger = DiscordLogHandler()
+        # discord_logger.setLevel(logging.INFO)
+        # discord_logger.setFormatter(logging.Formatter("%(message)s"))
+        # logging.addHandler(discord_logger)
+
+    def run(self):
         super().run(config.GLOBAL["discord"]["token"])
 
     def log(self, msg):
@@ -170,7 +176,7 @@ class SlashBot(discord.Client):
     async def send_error(self, channel, error):
         config.STATS.ERRORS += 1
         await super().send_message(channel, "🚫 **Error:** {}".format(error))
-        
+
     """
     Destruction
     """
@@ -209,7 +215,7 @@ class DiscordLogHandler(logging.StreamHandler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            config.GLOBAL["shogun"].log(msg)
+            config.GLOBAL["bot"].log(msg)
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
