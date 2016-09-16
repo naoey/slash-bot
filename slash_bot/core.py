@@ -16,6 +16,7 @@ import importlib
 import config
 import errors
 import models
+import utils
 
 
 LOG_CONFIG = {
@@ -92,8 +93,7 @@ class SlashBot(discord.Client):
                     config.STATS.MODULES_ACTIVE += 1
 
                 except ImportError as ie:
-                    logging.error("Couldn't import module '{}'".format(name))
-                    traceback.print_exc()
+                    logging.exception("Couldn't import module '{}'".format(name))
 
                 except Exception as e:
                     logging.error("Unkown error activating module {}".format(name))
@@ -136,7 +136,7 @@ class SlashBot(discord.Client):
                     await self.send_error(message.channel, sbe)
                 except Exception as e:
                     logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
-                    logging.debug("{}: {} occurred while processing message {} at line {}".format(type(e), e, str(message), sys.exc_traceback.tb_lineno))
+                    logging.exception("An error occurred")
                     await self.send_error(message.channel, "An error occurred 🙈")
 
     """
@@ -147,6 +147,7 @@ class SlashBot(discord.Client):
         await super().send_message(channel, message)
 
     async def send_error(self, channel, error):
+        config.STATS.ERRORS += 1
         await super().send_message(channel, "🚫 **Error:** {}".format(error))
         
     """
@@ -167,6 +168,7 @@ class Stats(object):
         self.SERVERS = 0
         self.TEXT_CHANNELS = 0
         self.VOICE_CHANNELS = 0
+        self.ERRORS = 0
 
     def serialise(self):
         serial = {}
