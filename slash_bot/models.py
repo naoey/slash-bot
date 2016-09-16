@@ -48,7 +48,7 @@ class RiotUser(SlashBotDatabase):
     server_registered = ForeignKeyField(Server, related_name="registration_server")
     channel_registered = ForeignKeyField(Channel, related_name="channel_registered")
     last_update_data = TextField(null=True)
-    last_updated = DateField(null=True)
+    last_updated = DateTimeField(null=True)
 
 class Meta:
     primary_key = CompositeKey("summoner_name", "region", "user")
