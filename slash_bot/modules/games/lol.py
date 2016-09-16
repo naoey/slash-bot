@@ -207,27 +207,27 @@ class LeagueOfLegendsFunctions(object):
         collated["level"] = summoner["summonerLevel"]
         collated["region"] = region
         collated["recent"] = {
-        "name": None,
-        "plays": 0,
-        "wins": 0,
-        "kda": 0,
+            "name": None,
+            "plays": 0,
+            "wins": 0,
+            "kda": 0,
         }
         collated["mastery"] = {
-        "level": 0,
-        "plays": 0,
-        "score": 0,
+            "level": 0,
+            "plays": 0,
+            "score": 0,
         }
         collated["normal_wins"] = 0
         collated["ranked"] = {
-        "league": None,
-        "plays": 0,
-        "wins": 0,
-        "kda": 0,
-        "fav": {
-        "name": None,
-        "plays": 0,
-        "wins": 0,
-        "kda": 0,
+            "league": None,
+            "plays": 0,
+            "wins": 0,
+            "kda": 0,
+            "fav": {
+                "name": None,
+                "plays": 0,
+                "wins": 0,
+                "kda": 0,
         },
         "kills_avg": 0,
         "deaths_avg": 0,
