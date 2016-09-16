@@ -24,6 +24,20 @@ api = None
 
 _API_KEY = None
 
+REGIONS = {
+    "NA": "North America",
+    "EUW": "Europe West",
+    "EUNE": "Europe Nordic & East",
+    "JP": "Japan",
+    "RU": "Russia",
+    "KR": "Korea",
+    "LAS": "Latin America South",
+    "LAN": "Latin America North",
+    "TK": "Turkey",
+    "BR": "Brazil",
+    "OCE": "Oceania",
+}
+
 class LeagueOfLegends(object):
 
     valid_regions = [
@@ -103,13 +117,18 @@ class LeagueOfLegends(object):
 
             summoner["id"] = rito_resp["id"]
 
-            r = RiotUser.update(summoner_id=rito_resp["id"]).where((RiotUser.summoner_name == summoner["name"]) &
-                                                                (RiotUser.region == summoner["region"])).execute()
+            r = RiotUser.update(summoner_id=rito_resp["id"]).where(
+                    (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
+                ).execute()
 
             if r < 1:
-                logging.debug(("Local player info/summoner id wasn't updated for summoner {} on {}."
-                                "Either this user isn't stored locally or there was an error updating.").format(summoner["name"],
-                                                                                                            summoner["region"]))
+                logging.debug(
+                    ("Local player info/summoner id wasn't updated for summoner {} on {}."
+                    "Either this user isn't stored locally or there was an error updating.").format(
+                        summoner["name"],
+                        summoner["region"]
+                    )
+                )
 
         # TODO: Handle 404 for non existent player
         player_info = await _delegate.player_summary(summoner["id"], summoner["region"])
@@ -130,8 +149,10 @@ class LeagueOfLegendsFunctions(object):
                         "region": riotuser.region,
                     }
                 except RiotUser.DoesNotExist:
-                    raise errors.SlashBotValueError("{} no summoner names have been stored for this user."
-                                                    " They must `,lol setname` first.".format(discord_user.mention))
+                    raise errors.SlashBotValueError(
+                        "{} no summoner names have been stored for this user."
+                        " They must `,lol setname` first.".format(discord_user.mention)
+                    )
 
             elif len(params) == 1 and params[0].startswith("<@"):
                 uid = params[0][1:-1][1:]
@@ -144,8 +165,10 @@ class LeagueOfLegendsFunctions(object):
                         "region": riotuser.region,
                     }
                 except RiotUser.DoesNotExist:
-                    raise errors.SlashBotValueError("{} no summoner names have been stored for this user."
-                                                    " They must `,lol setname` first.".format(discord_user.mention))
+                    raise errors.SlashBotValueError(
+                        "{} no summoner names have been stored for this user."
+                        " They must `,lol setname` first.".format(discord_user.mention)
+                    )
 
             else:
                 raise errors.CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
@@ -205,7 +228,7 @@ class LeagueOfLegendsFunctions(object):
         collated = {}
         collated["name"] = summoner["name"]
         collated["level"] = summoner["summonerLevel"]
-        collated["region"] = region
+        collated["region"] = REGIONS[region]
         collated["recent"] = {
             "name": None,
             "plays": 0,
@@ -220,8 +243,10 @@ class LeagueOfLegendsFunctions(object):
         collated["normal_wins"] = 0
         collated["ranked"] = {
             "league": None,
-            "plays": 0,
+            "division": "",
+            "points": 0,
             "wins": 0,
+            "losses": 0,
             "kda": 0,
             "fav": {
                 "name": None,
@@ -247,16 +272,48 @@ class LeagueOfLegendsFunctions(object):
 
         try:
             stats = api.get_stat_summary(summoner_id, region=region)
+
+            unranked_stats = [stat_summary for stat_summary in stats["playerStatSummaries"]
+                                        if stat_summary["playerStatSummaryType"] == "Unranked"][0]
+
+            collated["normal_wins"] = unranked_stats["wins"]
         except riotwatcher.LoLException as e:
             return collated
 
         try:
             ranked = api.get_ranked_stats(summoner_id, region=region)
+
+            favourite_champion = max([x for x in ranked["champions"] if x["id"] != 0], key=lambda d: d["stats"]["totalSessionsPlayed"])
+            favourite_champion_name = api.static_get_champion(favourite_champion["id"], champ_data="info")
+            logging.debug(favourite_champion_name)
+            collated["ranked"]["fav"] = {
+                "name": favourite_champion_name["name"],
+                "plays": favourite_champion["stats"]["totalSessionsPlayed"],
+                "wins": favourite_champion["stats"]["totalSessionsWon"],
+                "kda": "{}/{}/{}".format(
+                    favourite_champion["stats"]["totalChampionKills"],
+                    favourite_champion["stats"]["totalDeathsPerSession"],
+                    favourite_champion["stats"]["totalAssists"]
+                )
+            }
+
+            league = api.get_league(summoner_ids=[summoner_id,])
+            # TODO: Check why summoner_id is int here
+            player_in_league = [x for x in league[str(summoner_id)][0]["entries"] if x["playerOrTeamId"] == str(summoner_id)][0]
+            collated["ranked"]["league"] = league[str(summoner_id)][0]["tier"].title()
+            collated["ranked"]["division"] = player_in_league["division"]
+            collated["ranked"]["points"] = player_in_league["leaguePoints"]
+            collated["ranked"]["wins"] = player_in_league["wins"]
+            collated["ranked"]["losses"] = player_in_league["losses"]
+
+            ranked_general = [x for x in ranked["champions"] if x["id"] == 0][0]
+
         except riotwatcher.LoLException as e:
             return collated
 
         r = RiotUser.update(last_update_data=json.dumps(collated), last_updated=datetime.datetime.now()).where(
-                                                    (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)).execute()
+                (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)
+            ).execute()
 
         if r < 1:
             logging.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
@@ -276,9 +333,9 @@ class Responses:
         "-------\n"
         "Ranked stats\n"
         "-------\n"
-        "League: {ranked[league]}\n"
-        "Games this season: {ranked[plays]} ({ranked[wins]} won, {ranked[kda]} KDA)\n"
-        "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} wins, {ranked[fav][kda]} KDA)\n"
+        "League: {ranked[league]} {ranked[division]}, {ranked[points]} points\n"
+        "Games this season: {ranked[wins]} wins, {ranked[losses]} losses ({ranked[kda]} KDA)\n"
+        "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} wins, {ranked[fav][kda]} K/D/A)\n"
         # "Favourite position: {}\n"
         "Average K/D/A: {ranked[kills_avg]}/{ranked[deaths_avg]}/{ranked[assists_avg]}\n"
         "Total K/D/A: {ranked[kills]}/{ranked[deaths]}/{ranked[assists]}\n"
