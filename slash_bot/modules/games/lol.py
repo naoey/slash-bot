@@ -14,12 +14,17 @@ import re
 import config
 import errors
 
+# TODO: Remove Cassiopeia completely
 from cassiopeia import riotapi, baseriotapi
+from riotwatcher import RiotWatcher
 from models import *
 
 BOT = config.GLOBAL["bot"]
 _delegate = None
 
+api = None
+
+_API_KEY = None
 
 class LeagueOfLegends(object):
 
@@ -38,12 +43,18 @@ class LeagueOfLegends(object):
 
     def __init__(self):
         global _delegate
+        global _API_KEY
+        global api
 
-        with open(config.PATHS["rito_creds"], "r") as cf_r:
-            riotapi.set_api_key(json.load(cf_r)["api_key"])
+        if _API_KEY is None:
+            with open(config.PATHS["rito_creds"], "r") as cf_r:
+                _API_KEY = json.load(cf_r)["api_key"]
 
         if _delegate is None:
             _delegate = LeagueOfLegendsFunctions()
+
+        if api is None:
+            api = RiotWatcher(_API_KEY)
 
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
@@ -84,7 +95,24 @@ class LeagueOfLegends(object):
 
     async def cmd_player(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
-        await BOT.send_message(channel, summoner)
+
+        if summoner["id"] is None:
+            riotapi.set_region(summoner["region"])
+            rito_resp = api.get_summoner(summoner["name"])
+            summoner["id"] = rito_resp["id"]
+
+            r = RiotUser.update(summoner_id=rito_resp["id"]).where((RiotUser.summoner_name == summoner["name"]) &
+                                                                (RiotUser.region == summoner["region"])).execute()
+
+            if r < 1:
+                logging.debug(("Local player info/summoner id wasn't updated for summoner {} on {}."
+                                "Either this user isn't stored locally or there was an error updating.").format(summoner["name"],
+                                                                                                            summoner["region"]))
+
+        # TODO: Handle 404 for non existent player
+        player_info = await _delegate.player_summary(summoner["id"], summoner["region"])
+
+        await BOT.send_message(channel, Responses.PLAYER_SUMMARY.format(**player_info))
 
 
 class LeagueOfLegendsFunctions(object):
@@ -154,15 +182,101 @@ class LeagueOfLegendsFunctions(object):
 
         return (name, region)
 
-    async def match_details(self, match_id):
+    async def match_details(self, match_id, region):
         pass
 
-    async def recent_games(self, summoner_id):
+    async def recent_games(self, summoner_id, region):
         pass
 
-    async def player_summary(self, summoner_id):
-        pass
+    async def player_summary(self, summoner_id, region):
+        try:
+            user = RiotUser.get(summoner_id=summoner_id)
+
+            if user.last_updated is not None and (datetime.datetime.now()-user.last_updated).total_seconds()/3600 < 5:
+                return json.loads(user.last_update_data)
+
+        except RiotUser.DoesNotExist:
+            logging.debug("No local user stored, proceeding with just summoner id")
+
+        summoner = api.get_summoner(_id=summoner_id, region=region)
+        stats = api.get_stat_summary(summoner_id, region=region)
+        ranked = api.get_ranked_stats(summoner_id, region=region)
+
+        collated = {}
+        collated["name"] = summoner["name"]
+        collated["level"] = summoner["summonerLevel"]
+        collated["region"] = region
+        collated["recent"] = {
+            "name": None,
+            "plays": 0,
+            "wins": 0,
+            "kda": 0,
+        }
+        collated["mastery"] = {
+            "level": 0,
+            "plays": 0,
+            "score": 0,
+        }
+        collated["normal_wins"] = 0
+        collated["ranked"] = {
+            "league": None,
+            "plays": 0,
+            "wins": 0,
+            "kda": 0,
+            "fav": {
+                "name": None,
+                "plays": 0,
+                "wins": 0,
+                "kda": 0,
+            },
+            "kills_avg": 0,
+            "deaths_avg": 0,
+            "assists_avg": 0,
+            "kills": 0,
+            "deaths": 0,
+            "assists": 0,
+            "largest_spree": 0,
+            "double": 0,
+            "triple": 0,
+            "quadra": 0,
+            "penta": 0,
+            "cs": 0,
+            "gold": 0,
+            "towers": 0,
+        }
+
+        r = RiotUser.update(last_update_data=json.dumps(collated), last_updated=datetime.datetime.now()).where(
+                                                    (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)).execute()
+
+        if r < 1:
+            logging.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
+
+        return collated
 
 
 class Responses:
-    pass
+    PLAYER_SUMMARY = (
+        "```py\n"
+        "Summoner name: {name}\n"
+        "Summoner level: {level}\n"
+        "Region: {region}\n"
+        "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} wins, {recent[kda]} KDA)\n"
+        "Highest champion mastery: {mastery[level]} ({mastery[plays]} plays, {mastery[score]} score)\n"
+        "Normal games won: {normal_wins}\n"
+        "-------\n"
+        "Ranked stats\n"
+        "-------\n"
+        "League: {ranked[league]}\n"
+        "Games this season: {ranked[plays]} ({ranked[wins]} won, {ranked[kda]} KDA)\n"
+        "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} wins, {ranked[fav][kda]} KDA)\n"
+        # "Favourite position: {}\n"
+        "Average K/D/A: {ranked[kills_avg]}/{ranked[deaths_avg]}/{ranked[assists_avg]}\n"
+        "Total K/D/A: {ranked[kills]}/{ranked[deaths]}/{ranked[assists]}\n"
+        "Largest killing spree: {ranked[largest_spree]}\n"
+        "Double/Triple/Quadra/Penta: {ranked[double]}/{ranked[triple]}/{ranked[quadra]}/{ranked[penta]}\n"
+        "Creep score: {ranked[cs]}\n"
+        "Gold earned: {ranked[gold]}\n"
+        "Towers destroyed: {ranked[towers]}\n"
+        #"MMR: {ranked[mmr]}\n"
+        "```\n"
+    )
