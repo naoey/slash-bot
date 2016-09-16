@@ -7,16 +7,14 @@ Created on 2016-08-23
 
 import logging
 import json
-import cassiopeia
+import riotwatcher
 import datetime, time
 import re
 
 import config
+# TODO: Import all errors into namespace instead of qualifying every time
 import errors
 
-# TODO: Remove Cassiopeia completely
-from cassiopeia import riotapi, baseriotapi
-from riotwatcher import RiotWatcher
 from models import *
 
 BOT = config.GLOBAL["bot"]
@@ -54,7 +52,7 @@ class LeagueOfLegends(object):
             _delegate = LeagueOfLegendsFunctions()
 
         if api is None:
-            api = RiotWatcher(_API_KEY)
+            api = riotwatcher.RiotWatcher(_API_KEY)
 
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
@@ -97,8 +95,12 @@ class LeagueOfLegends(object):
         summoner = await _delegate.get_summoner_info(sender, params)
 
         if summoner["id"] is None:
-            riotapi.set_region(summoner["region"])
-            rito_resp = api.get_summoner(summoner["name"])
+            try:
+                rito_resp = api.get_summoner(summoner["name"])
+            except riotwatcher.LoLException as e:
+                if e == riotwatcher.error_404:
+                    raise errors.SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
+
             summoner["id"] = rito_resp["id"]
 
             r = RiotUser.update(summoner_id=rito_resp["id"]).where((RiotUser.summoner_name == summoner["name"]) &
@@ -199,51 +201,59 @@ class LeagueOfLegendsFunctions(object):
             logging.debug("No local user stored, proceeding with just summoner id")
 
         summoner = api.get_summoner(_id=summoner_id, region=region)
-        stats = api.get_stat_summary(summoner_id, region=region)
-        ranked = api.get_ranked_stats(summoner_id, region=region)
 
         collated = {}
         collated["name"] = summoner["name"]
         collated["level"] = summoner["summonerLevel"]
         collated["region"] = region
         collated["recent"] = {
-            "name": None,
-            "plays": 0,
-            "wins": 0,
-            "kda": 0,
+        "name": None,
+        "plays": 0,
+        "wins": 0,
+        "kda": 0,
         }
         collated["mastery"] = {
-            "level": 0,
-            "plays": 0,
-            "score": 0,
+        "level": 0,
+        "plays": 0,
+        "score": 0,
         }
         collated["normal_wins"] = 0
         collated["ranked"] = {
-            "league": None,
-            "plays": 0,
-            "wins": 0,
-            "kda": 0,
-            "fav": {
-                "name": None,
-                "plays": 0,
-                "wins": 0,
-                "kda": 0,
-            },
-            "kills_avg": 0,
-            "deaths_avg": 0,
-            "assists_avg": 0,
-            "kills": 0,
-            "deaths": 0,
-            "assists": 0,
-            "largest_spree": 0,
-            "double": 0,
-            "triple": 0,
-            "quadra": 0,
-            "penta": 0,
-            "cs": 0,
-            "gold": 0,
-            "towers": 0,
+        "league": None,
+        "plays": 0,
+        "wins": 0,
+        "kda": 0,
+        "fav": {
+        "name": None,
+        "plays": 0,
+        "wins": 0,
+        "kda": 0,
+        },
+        "kills_avg": 0,
+        "deaths_avg": 0,
+        "assists_avg": 0,
+        "kills": 0,
+        "deaths": 0,
+        "assists": 0,
+        "largest_spree": 0,
+        "double": 0,
+        "triple": 0,
+        "quadra": 0,
+        "penta": 0,
+        "cs": 0,
+        "gold": 0,
+        "towers": 0,
         }
+
+        try:
+            stats = api.get_stat_summary(summoner_id, region=region)
+        except riotwatcher.LoLException as e:
+            return collated
+
+        try:
+            ranked = api.get_ranked_stats(summoner_id, region=region)
+        except riotwatcher.LoLException as e:
+            return collated
 
         r = RiotUser.update(last_update_data=json.dumps(collated), last_updated=datetime.datetime.now()).where(
                                                     (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)).execute()
