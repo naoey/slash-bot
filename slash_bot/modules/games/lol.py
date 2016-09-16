@@ -105,7 +105,7 @@ class LeagueOfLegends(object):
 
         riotuser.save()
 
-    async def cmd_player(self, sender, channel, params):
+    async def cmd_summoner(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
 
         if summoner["id"] is None:
@@ -235,11 +235,11 @@ class LeagueOfLegendsFunctions(object):
             "wins": 0,
             "kda": 0,
         }
-        collated["mastery"] = {
-            "level": 0,
-            "plays": 0,
-            "score": 0,
-        }
+        # collated["mastery"] = {
+        #     "level": 0,
+        #     "plays": 0,
+        #     "score": 0,
+        # }
         collated["normal_wins"] = 0
         collated["ranked"] = {
             "league": None,
@@ -269,6 +269,19 @@ class LeagueOfLegendsFunctions(object):
         "towers": 0,
         }
 
+        collated = await self._unranked_player_summary(collated, summoner_id, region)
+        collated = await self._ranked_player_summary(collated, summoner_id, region)
+
+        r = RiotUser.update(last_update_data=json.dumps(collated), last_updated=datetime.datetime.now()).where(
+                (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)
+            ).execute()
+
+        if r < 1:
+            logging.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
+
+        return collated
+
+    async def _unranked_player_summary(self, collated, summoner_id, region):
         try:
             stats = api.get_stat_summary(summoner_id, region=region)
 
@@ -276,15 +289,62 @@ class LeagueOfLegendsFunctions(object):
                                         if stat_summary["playerStatSummaryType"] == "Unranked"][0]
 
             collated["normal_wins"] = unranked_stats["wins"]
+
+            recent_games = api.get_recent_games(summoner_id)
+            champions_played = {}
+
+            for game in recent_games["games"]:
+                import pprint
+                pprint.pprint(game)
+                if game["subType"] != "BOT:":
+                    try:
+                        champions_played[game["championId"]]["plays"] += 1
+                        champions_played[game["championId"]]["kills"] += game["stats"]["championsKilled"]
+                        champions_played[game["championId"]]["assists"] += game["stats"]["assists"]
+                        champions_played[game["championId"]]["deaths"] += game["stats"]["numDeaths"]
+
+                        if game["stats"]["win"]:
+                            champions_played[game["championId"]]["wins"] += 1
+
+                    except KeyError:
+                        champions_played[game["championId"]] = {
+                            "id": game["championId"],
+                            "plays": 1,
+                            "wins": 1 if game["stats"]["win"] else 0,
+                            "kills": game["stats"]["championsKilled"],
+                            "assists": game["stats"]["assists"],
+                            "deaths": game["stats"]["numDeaths"],
+                        }
+
+            most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
+            champion = api.static_get_champion(most_played["id"], champ_data="info")
+
+            collated["recent"] = {
+                "name": champion["name"],
+                "plays": most_played["plays"],
+                "wins": most_played["wins"],
+                "kda": "{}/{}/{}".format(
+                    most_played["kills"],
+                    most_played["deaths"],
+                    most_played["assists"],
+                )
+            }
+
+            # TODO: Add champion masteries after updating RiotWatcher
+
         except riotwatcher.LoLException as e:
             return collated
 
+        return collated
+
+    async def _ranked_player_summary(self, collated, summoner_id, region):
         try:
             ranked = api.get_ranked_stats(summoner_id, region=region)
 
+            # TODO: Combine all champion static data requests
             favourite_champion = max([x for x in ranked["champions"] if x["id"] != 0], key=lambda d: d["stats"]["totalSessionsPlayed"])
             favourite_champion_name = api.static_get_champion(favourite_champion["id"], champ_data="info")
-            logging.debug(favourite_champion_name)
+
             collated["ranked"]["fav"] = {
                 "name": favourite_champion_name["name"],
                 "plays": favourite_champion["stats"]["totalSessionsPlayed"],
@@ -306,7 +366,6 @@ class LeagueOfLegendsFunctions(object):
             collated["ranked"]["losses"] = player_in_league["losses"]
 
             ranked_general = [x for x in ranked["champions"] if x["id"] == 0][0]["stats"]
-            logging.debug(ranked_general)
             collated["ranked"]["kills_avg"] = round(ranked_general["totalChampionKills"]/ranked_general["totalSessionsPlayed"], 2)
             collated["ranked"]["deaths_avg"] = round(ranked_general["totalDeathsPerSession"]/ranked_general["totalSessionsPlayed"], 2)
             collated["ranked"]["assists_avg"] = round(ranked_general["totalAssists"]/ranked_general["totalSessionsPlayed"], 2)
@@ -321,15 +380,10 @@ class LeagueOfLegendsFunctions(object):
             collated["ranked"]["cs"] = ranked_general["totalMinionKills"]
             collated["ranked"]["gold"] = ranked_general["totalGoldEarned"]
             collated["ranked"]["towers"] = ranked_general["totalTurretsKilled"]
+
+            # TODO: Add promo series info
         except riotwatcher.LoLException as e:
             return collated
-
-        r = RiotUser.update(last_update_data=json.dumps(collated), last_updated=datetime.datetime.now()).where(
-                (RiotUser.summoner_id == summoner_id) & (RiotUser.region == region)
-            ).execute()
-
-        if r < 1:
-            logging.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
 
         return collated
 
@@ -341,7 +395,7 @@ class Responses:
         "Summoner level: {level}\n"
         "Region: {region}\n"
         "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} wins, {recent[kda]} KDA)\n"
-        "Highest champion mastery: {mastery[level]} ({mastery[plays]} plays, {mastery[score]} score)\n"
+        # "Highest champion mastery: {mastery[level]} ({mastery[plays]} plays, {mastery[score]} score)\n"
         "Normal games won: {normal_wins}\n"
         "-------\n"
         "Ranked stats\n"
