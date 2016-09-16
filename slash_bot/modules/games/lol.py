@@ -214,14 +214,14 @@ class LeagueOfLegendsFunctions(object):
         pass
 
     async def player_summary(self, summoner_id, region):
-        try:
-            user = RiotUser.get(summoner_id=summoner_id)
-
-            if user.last_updated is not None and (datetime.datetime.now()-user.last_updated).total_seconds()/3600 < 5:
-                return json.loads(user.last_update_data)
-
-        except RiotUser.DoesNotExist:
-            logging.debug("No local user stored, proceeding with just summoner id")
+        # try:
+        #     user = RiotUser.get(summoner_id=summoner_id)
+        #
+        #     if user.last_updated is not None and (datetime.datetime.now()-user.last_updated).total_seconds()/3600 < 5:
+        #         return json.loads(user.last_update_data)
+        #
+        # except RiotUser.DoesNotExist:
+        #     logging.debug("No local user stored, proceeding with just summoner id")
 
         summoner = api.get_summoner(_id=summoner_id, region=region)
 
@@ -247,7 +247,6 @@ class LeagueOfLegendsFunctions(object):
             "points": 0,
             "wins": 0,
             "losses": 0,
-            "kda": 0,
             "fav": {
                 "name": None,
                 "plays": 0,
@@ -306,8 +305,22 @@ class LeagueOfLegendsFunctions(object):
             collated["ranked"]["wins"] = player_in_league["wins"]
             collated["ranked"]["losses"] = player_in_league["losses"]
 
-            ranked_general = [x for x in ranked["champions"] if x["id"] == 0][0]
-
+            ranked_general = [x for x in ranked["champions"] if x["id"] == 0][0]["stats"]
+            logging.debug(ranked_general)
+            collated["ranked"]["kills_avg"] = round(ranked_general["totalChampionKills"]/ranked_general["totalSessionsPlayed"], 2)
+            collated["ranked"]["deaths_avg"] = round(ranked_general["totalDeathsPerSession"]/ranked_general["totalSessionsPlayed"], 2)
+            collated["ranked"]["assists_avg"] = round(ranked_general["totalAssists"]/ranked_general["totalSessionsPlayed"], 2)
+            collated["ranked"]["kills"] = ranked_general["totalChampionKills"]
+            collated["ranked"]["deaths"] = ranked_general["totalDeathsPerSession"]
+            collated["ranked"]["assists"] = ranked_general["totalAssists"]
+            collated["ranked"]["largest_spree"] = ranked_general["maxLargestKillingSpree"]
+            collated["ranked"]["double"] = ranked_general["totalDoubleKills"]
+            collated["ranked"]["triple"] = ranked_general["totalTripleKills"]
+            collated["ranked"]["quadra"] = ranked_general["totalQuadraKills"]
+            collated["ranked"]["penta"] = ranked_general["totalPentaKills"]
+            collated["ranked"]["cs"] = ranked_general["totalMinionKills"]
+            collated["ranked"]["gold"] = ranked_general["totalGoldEarned"]
+            collated["ranked"]["towers"] = ranked_general["totalTurretsKilled"]
         except riotwatcher.LoLException as e:
             return collated
 
@@ -334,7 +347,7 @@ class Responses:
         "Ranked stats\n"
         "-------\n"
         "League: {ranked[league]} {ranked[division]}, {ranked[points]} points\n"
-        "Games this season: {ranked[wins]} wins, {ranked[losses]} losses ({ranked[kda]} KDA)\n"
+        "Games this season: {ranked[wins]} wins, {ranked[losses]} losses\n"
         "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} wins, {ranked[fav][kda]} K/D/A)\n"
         # "Favourite position: {}\n"
         "Average K/D/A: {ranked[kills_avg]}/{ranked[deaths_avg]}/{ranked[assists_avg]}\n"
