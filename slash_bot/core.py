@@ -12,6 +12,7 @@ import time, datetime
 import os, sys
 import json
 import importlib
+import threading
 
 import config
 import errors
@@ -102,6 +103,26 @@ class SlashBot(discord.Client):
         logging.info("Registered {} active modules".format(config.STATS.MODULES_ACTIVE))
         logging.debug("Registered modules map is {}".format(self.modules_map))
 
+    async def begin_status_loop(self):
+        try:
+            if not self._last_status_idx:
+                self._last_status_idx = 0
+        except AttributeError:
+            self._last_status_idx = 0
+
+        if len(config.DISCORD_STATUS_ITER) == 0:
+            await self.change_status(game=discord.Game(name="~slash"))
+            return
+
+        await self.change_status(game=discord.Game(name=config.DISCORD_STATUS_ITER[self._last_status_idx]))
+        threading.Timer(120, self.begin_status_loop).start()
+
+        self._last_status_idx += 1
+
+        if self._last_status_idx >= len(config.DISCORD_STATUS_ITER):
+            self._last_status_idx = 0
+
+
     """
     Discord event listeners
     """
@@ -112,7 +133,7 @@ class SlashBot(discord.Client):
         config.STATS = Stats()
         config.STATS.SERVERS = len(self.servers)
 
-        await self.change_status(game=discord.Game(name="v{}".format(config.VERSION)))
+        await self.begin_status_loop()
 
         self.modules_map = {}
 

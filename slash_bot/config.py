@@ -51,5 +51,5 @@ GLOBAL = {
 }
 
 DISCORD_STATUS_ITER = [
-    "{} hatchling".format(VERSION),
+    "procrastination \(^-^)/",
 ]
