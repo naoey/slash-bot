@@ -39,20 +39,6 @@ REGIONS = {
 }
 
 class LeagueOfLegends(object):
-
-    valid_regions = [
-        "NA",
-        "EUW",
-        "EUNE",
-        "JP",
-        "KR",
-        "BR",
-        "RU",
-        "LAN",
-        "LAS",
-        "TR",
-    ]
-
     def __init__(self):
         global _delegate
         global _API_KEY
@@ -71,7 +57,7 @@ class LeagueOfLegends(object):
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
 
-        if region not in LeagueOfLegends.valid_regions:
+        if region not in REGIONS.keys():
             raise errors.SlashBotValueError("Unkown region {}".format(region))
 
         user = User.get_or_create(user_id=sender.id, defaults={
@@ -294,8 +280,6 @@ class LeagueOfLegendsFunctions(object):
             champions_played = {}
 
             for game in recent_games["games"]:
-                import pprint
-                pprint.pprint(game)
                 if game["subType"] != "BOT:":
                     try:
                         champions_played[game["championId"]]["plays"] += 1
