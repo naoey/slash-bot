@@ -221,11 +221,13 @@ class LeagueOfLegendsFunctions(object):
             "wins": 0,
             "kda": 0,
         }
-        # collated["mastery"] = {
-        #     "level": 0,
-        #     "plays": 0,
-        #     "score": 0,
-        # }
+        collated["mastery"] = {
+            "level": 0,
+            "plays": 0,
+            "score": 0,
+            "total_mastery": 0,
+            "champion": None,
+        }
         collated["normal_wins"] = 0
         collated["ranked"] = {
             "league": None,
@@ -314,7 +316,19 @@ class LeagueOfLegendsFunctions(object):
                 )
             }
 
-            # TODO: Add champion masteries after updating RiotWatcher
+            score = api.get_mastery_score(summoner_id, region)
+            top_champion = api.get_top_champions(summoner_id, region, count=1)[0]
+            champion = api.static_get_champion(top_champion["championId"], champ_data="info")
+
+            collated["mastery"] = {
+                "level": top_champion["championLevel"],
+                "last_play": datetime.datetime.fromtimestamp(
+                    int(top_champion["lastPlayTime"])/1000
+                ).strftime("%d-%m-%Y %I:%M %p"),
+                "score": top_champion["championPoints"],
+                "total_mastery": score,
+                "champion": champion["name"],
+            }
 
         except riotwatcher.LoLException as e:
             return collated
@@ -379,7 +393,8 @@ class Responses:
         "Summoner level: {level}\n"
         "Region: {region}\n"
         "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} wins, {recent[kda]} KDA)\n"
-        # "Highest champion mastery: {mastery[level]} ({mastery[plays]} plays, {mastery[score]} score)\n"
+        "Total champion mastery: {mastery[total_mastery]}\n"
+        "Highest champion mastery: {mastery[champion]} (Level {mastery[level]}, {mastery[score]} score, last played {mastery[last_play]})\n"
         "Normal games won: {normal_wins}\n"
         "-------\n"
         "Ranked stats\n"
