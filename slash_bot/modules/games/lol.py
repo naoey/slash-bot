@@ -94,32 +94,14 @@ class LeagueOfLegends(object):
     async def cmd_summoner(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
 
-        if summoner["id"] is None:
-            try:
-                rito_resp = api.get_summoner(summoner["name"])
-            except riotwatcher.LoLException as e:
-                if e == riotwatcher.error_404:
-                    raise errors.SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
-
-            summoner["id"] = rito_resp["id"]
-
-            r = RiotUser.update(summoner_id=rito_resp["id"]).where(
-                    (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
-                ).execute()
-
-            if r < 1:
-                logging.debug(
-                    ("Local player info/summoner id wasn't updated for summoner {} on {}."
-                    "Either this user isn't stored locally or there was an error updating.").format(
-                        summoner["name"],
-                        summoner["region"]
-                    )
-                )
-
-        # TODO: Handle 404 for non existent player
         player_info = await _delegate.player_summary(summoner["id"], summoner["region"])
 
         await BOT.send_message(channel, Responses.PLAYER_SUMMARY.format(**player_info))
+
+    async def cmd_game(self, sender, channel, params):
+        summoner = await _delegate.get_summoner_info(sender, params)
+
+
 
 
 class LeagueOfLegendsFunctions(object):
@@ -166,6 +148,33 @@ class LeagueOfLegendsFunctions(object):
                 "id": None,
                 "region": region,
             }
+
+        summoner = await self._update_summoner_info(summoner)
+
+        return summoner
+
+    async def _update_summoner_info(self, summoner):
+        if summoner["id"] is None:
+            try:
+                rito_resp = api.get_summoner(summoner["name"])
+            except riotwatcher.LoLException as e:
+                if e == riotwatcher.error_404:
+                    raise errors.SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
+
+            summoner["id"] = rito_resp["id"]
+
+            r = RiotUser.update(summoner_id=rito_resp["id"]).where(
+                    (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
+                ).execute()
+
+            if r < 1:
+                logging.debug(
+                    ("Local player info/summoner id wasn't updated for summoner {} on {}."
+                    "Either this user isn't stored locally or there was an error updating.").format(
+                        summoner["name"],
+                        summoner["region"]
+                    )
+                )
 
         return summoner
 
@@ -392,7 +401,7 @@ class Responses:
         "Summoner name: {name}\n"
         "Summoner level: {level}\n"
         "Region: {region}\n"
-        "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} wins, {recent[kda]} KDA)\n"
+        "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} win(s), {recent[kda]} KDA)\n"
         "Total champion mastery: {mastery[total_mastery]}\n"
         "Highest champion mastery: {mastery[champion]} (Level {mastery[level]}, {mastery[score]} score, last played {mastery[last_play]})\n"
         "Normal games won: {normal_wins}\n"
@@ -400,8 +409,8 @@ class Responses:
         "Ranked stats\n"
         "-------\n"
         "League: {ranked[league]} {ranked[division]}, {ranked[points]} points\n"
-        "Games this season: {ranked[wins]} wins, {ranked[losses]} losses\n"
-        "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} wins, {ranked[fav][kda]} K/D/A)\n"
+        "Games this season: {ranked[wins]} win(s), {ranked[losses]} losses\n"
+        "Favourite champion: {ranked[fav][name]} ({ranked[fav][plays]} plays, {ranked[fav][wins]} win(s), {ranked[fav][kda]} K/D/A)\n"
         # "Favourite position: {}\n"
         "Average K/D/A: {ranked[kills_avg]}/{ranked[deaths_avg]}/{ranked[assists_avg]}\n"
         "Total K/D/A: {ranked[kills]}/{ranked[deaths]}/{ranked[assists]}\n"
