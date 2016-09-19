@@ -282,7 +282,7 @@ class LeagueOfLegendsFunctions(object):
             champions_played = {}
 
             for game in recent_games["games"]:
-                if game["subType"] != "BOT:":
+                if game["subType"] != "BOT":
                     try:
                         champions_played[game["championId"]]["plays"] += 1
                         champions_played[game["championId"]]["kills"] += game["stats"]["championsKilled"]
