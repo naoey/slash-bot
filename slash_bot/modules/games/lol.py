@@ -38,6 +38,20 @@ REGIONS = {
     "OCE": "Oceania",
 }
 
+PLAYER_POSITION = {
+    1: "Top",
+    2: "Middle",
+    3: "Jungle",
+    4: "Bot"
+}
+
+PLAYER_ROLE = {
+    1: "DUO",
+    2: "SUPPORT",
+    3: "CARRY",
+    4: "SOLO",
+}
+
 class LeagueOfLegends(object):
     def __init__(self):
         global _delegate
@@ -85,9 +99,16 @@ class LeagueOfLegends(object):
 
                 setattr(riotuser, field, value)
 
-            await BOT.send_message(channel, "{}\nUpdated your LoL username to {} on region {} 👍".format(sender.mention, summoner, region))
+            await BOT.send_message(channel, Responses.UPDATED_LOL_USERNAME.format(
+                sender=sender.mention,
+                name=summoner,
+                region=region)
+            )
         else:
-            await BOT.send_message(channel, "{}\nStored your LoL name on {} 👍".format(sender.mention, region))
+            await BOT.send_message(channel, Response.STORED_LOL_USERNAME.format(
+                name=sender.mention,
+                region=region)
+            )
 
         riotuser.save()
 
@@ -101,7 +122,16 @@ class LeagueOfLegends(object):
     async def cmd_game(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
 
+        game = await _delegate.live_game(summoner["id"], summoner["region"])
 
+        if game is None:
+            await BOT.send_message(channel, Responses.NOT_IN_GAME.format(
+                name=summoner["name"],
+                region=summoner["region"])
+            )
+
+        else:
+            await BOT.send_message(channel, Responses.LIVE_GAME.format(**game))
 
 
 class LeagueOfLegendsFunctions(object):
@@ -306,9 +336,9 @@ class LeagueOfLegendsFunctions(object):
                             "id": game["championId"],
                             "plays": 1,
                             "wins": 1 if game["stats"]["win"] else 0,
-                            "kills": game["stats"]["championsKilled"],
-                            "assists": game["stats"]["assists"],
-                            "deaths": game["stats"]["numDeaths"],
+                            "kills": 0 if "championsKilled" not in game["stats"].keys() else game["stats"]["championsKilled"],
+                            "assists": 0 if "numDeaths" not in game["stats"].keys() else game["stats"]["numDeaths"],
+                            "deaths": 0 if "assists" not in game["stats"].keys() else game["stats"]["assists"],
                         }
 
             most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
@@ -365,6 +395,7 @@ class LeagueOfLegendsFunctions(object):
 
             league = api.get_league(summoner_ids=[summoner_id,])
             # TODO: Check why summoner_id is int here
+            # TODO: Add favourite role to ranked stats
             player_in_league = [x for x in league[str(summoner_id)][0]["entries"] if x["playerOrTeamId"] == str(summoner_id)][0]
             collated["ranked"]["league"] = league[str(summoner_id)][0]["tier"].title()
             collated["ranked"]["division"] = player_in_league["division"]
@@ -394,8 +425,15 @@ class LeagueOfLegendsFunctions(object):
 
         return collated
 
+    async def live_game(self, summoner_id, region):
+        pass
+
 
 class Responses:
+    UPDATED_LOL_USERNAME = "{sender}\nUpdated your LoL username to {name} on region {region} 👍"
+
+    STORED_LOL_USERNAME =  "{sender}\nStored your LoL name on {region} 👍"
+
     PLAYER_SUMMARY = (
         "```py\n"
         "Summoner name: {name}\n"
@@ -422,3 +460,5 @@ class Responses:
         #"MMR: {ranked[mmr]}\n"
         "```\n"
     )
+
+    NOT_IN_GAME = "Summoner {name} is not in game on {region}"
