@@ -52,6 +52,49 @@ PLAYER_ROLE = {
     4: "SOLO",
 }
 
+MAPS = {
+    1: "Summoner's Rift",
+    2: "Summoner's Rift",
+    3: "The Proving Grounds",
+    4: "Twisted Treeline",
+    8: "The Crystal Scar",
+    10: "Twisted Treeline",
+    11: "Summoner's Rift",
+    12: "Howling Abyss",
+    14: "Butcher's Bridge",
+}
+
+GAME_TYPES = {
+    "CUSTOM_GAME": "Custom Game",
+    "TUTORIAL_GAME": "Tutorial",
+    "MATCHED_GAME": "Matched game",
+}
+
+GAME_SUB_TYPES = [
+    "NONE": "Custom game",
+    "NORMAL":  "Unranked on Summoner's Rift",
+    "NORMAL_3x3": "Unranked on Twisted Treeline",
+    "ODIN_UNRANKED": "Dominion on Crystal Scar",
+    "ARAM_UNRANKED_5v5": "ARAM on Howling Abyss",
+    "BOT": "Co-op vs AI 5v5",
+    "BOT_3x3": "Co-op vs AI on Twisted Treeline",
+    "RANKED_SOLO_5x5": "Ranked on Summoner's Rift",
+    "RANKED_TEAM_3x3": "Ranked team on Twisted Treeline",
+    "RANKED_TEAM_5x5": "Ranked team on Summoner's Rift",
+    "ONEFORALL_5x5": "One For All 5v5",
+    "FIRSTBLOOD_1x1": "Snowdown Showdown 1v1",
+    "FIRSTBLOOD_2x2": "Snowdown Showdown 2v2",
+    "SR_6x6": "Hexakill on Summoner's Rift",
+    "URF": "Ultra Rapid Fire",
+    "URF_BOT": "Ultra Rapid Fire Co-op vs AI",
+    "NIGHTMARE_BOT": "Nightmare Bots",
+    "ASCENSION": "Ascension",
+    "HEXAKILL": "Hexakill on Twisted Treeline",
+    "KING_PORO": "King Poro",
+    "COUNTER_PICK": "Nemesis Draft",
+    "BILGEWATER": "Black Market Brawlers",
+]
+
 class LeagueOfLegends(object):
     def __init__(self):
         global _delegate
