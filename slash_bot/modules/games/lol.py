@@ -94,6 +94,7 @@ GAME_SUB_TYPES = {
     "COUNTER_PICK": "Nemesis Draft",
     "BILGEWATER": "Black Market Brawlers",
 }
+
 CHAMPIONS = None # Static champions list initialised with LoL module
 
 class LeagueOfLegends(object):
@@ -477,8 +478,63 @@ class LeagueOfLegendsFunctions(object):
         return collated
 
     async def live_game(self, summoner_id, region):
-        pass
+        try:
+            platform = riotwatcher.platforms[region.lower()]
+        except KeyError:
+            platform = None
 
+        try:
+            game = api.get_current_game(summoner_id, platform, region)
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_404:
+                return None
+
+
+        general_info = {}
+        red_team = []
+        red_team_bans = []
+        blue_team = []
+        blue_team_bans = []
+
+        general_info["duration"] = time.strftime("%M:%S", time.gmtime(game["gameLength"]))
+        general_info["mode"] = game["gameMode"].title()
+        general_info["start_time"] = datetime.datetime.fromtimestamp(
+            int(game["gameStartTime"])/1000
+        ).strftime("%I:%M %p")
+
+        for each in game["bannedChampions"]:
+            if each["teamId"] == 100:
+                blue_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+            else:
+                red_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+
+        read_team_bans = ", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None
+        blue_team_bans = ", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None
+
+        for each in game["participants"]:
+            player = "• {} ({})"
+
+            if each["teamId"] == 100:
+                blue_team.append(player.format(
+                    each["summonerName"],
+                    CHAMPIONS[str(each["championId"])]["name"],
+                ))
+            else:
+                red_team.append(player.format(
+                    each["summonerName"],
+                    CHAMPIONS[str(each["championId"])]["name"],
+                ))
+
+        red_team = "\n".join(red_team).strip()
+        blue_team = "\n".join(blue_team).strip()
+
+        return {
+            "general": general_info,
+            "red_team": red_team,
+            "red_team_bans": red_team_bans,
+            "blue_team": blue_team,
+            "blue_team_bans": blue_team_bans,
+        }
 
 class Responses:
     UPDATED_LOL_USERNAME = "{sender}\nUpdated your LoL username to {name} on region {region} 👍"
@@ -513,3 +569,21 @@ class Responses:
     )
 
     NOT_IN_GAME = "Summoner {name} is not in game on {region}"
+
+    LIVE_GAME = (
+        "```py\n"
+        "Game type: {general[mode]}\n"
+        "Game duration: {general[duration]}\n"
+        "Game start time: {general[start_time]}\n"
+        "--------------\n"
+        "RED TEAM\n"
+        "--------------\n"
+        "Bans: {red_team_bans}\n"
+        '{red_team}\n'
+        "--------------\n"
+        "BLUE TEAM\n"
+        "--------------\n"
+        "Bans: {blue_team_bans}\n"
+        "{blue_team}\n"
+        "```\n"
+    )
