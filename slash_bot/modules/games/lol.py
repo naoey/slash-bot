@@ -70,7 +70,7 @@ GAME_TYPES = {
     "MATCHED_GAME": "Matched game",
 }
 
-GAME_SUB_TYPES = [
+GAME_SUB_TYPES = {
     "NONE": "Custom game",
     "NORMAL":  "Unranked on Summoner's Rift",
     "NORMAL_3x3": "Unranked on Twisted Treeline",
@@ -93,13 +93,15 @@ GAME_SUB_TYPES = [
     "KING_PORO": "King Poro",
     "COUNTER_PICK": "Nemesis Draft",
     "BILGEWATER": "Black Market Brawlers",
-]
+}
+CHAMPIONS = None # Static champions list initialised with LoL module
 
 class LeagueOfLegends(object):
     def __init__(self):
         global _delegate
         global _API_KEY
         global api
+        global CHAMPIONS
 
         if _API_KEY is None:
             with open(config.PATHS["rito_creds"], "r") as cf_r:
@@ -110,6 +112,10 @@ class LeagueOfLegends(object):
 
         if api is None:
             api = riotwatcher.RiotWatcher(_API_KEY)
+
+        if CHAMPIONS is None:
+            CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="info")["data"]
+            logging.debug("Collected {} champions".format(len(CHAMPIONS)))
 
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
@@ -439,6 +445,8 @@ class LeagueOfLegendsFunctions(object):
             league = api.get_league(summoner_ids=[summoner_id,])
             # TODO: Check why summoner_id is int here
             # TODO: Add favourite role to ranked stats
+
+            # TODO: Create the collated object with its data more cleanly
             player_in_league = [x for x in league[str(summoner_id)][0]["entries"] if x["playerOrTeamId"] == str(summoner_id)][0]
             collated["ranked"]["league"] = league[str(summoner_id)][0]["tier"].title()
             collated["ranked"]["division"] = player_in_league["division"]
