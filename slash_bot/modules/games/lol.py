@@ -94,7 +94,12 @@ GAME_SUB_TYPES = {
     "BILGEWATER": "Black Market Brawlers",
 }
 
-CHAMPIONS = None # Static champions list initialised with LoL module
+# Static data
+CHAMPIONS = None
+MASTERIES = None
+RUNES = None
+SUMMONER_ICONS = None
+SUMMONER_SPELLS = None
 
 class LeagueOfLegends(object):
     def __init__(self):
@@ -108,7 +113,7 @@ class LeagueOfLegends(object):
                 _API_KEY = json.load(cf_r)["api_key"]
 
         if _delegate is None:
-            _delegate = LeagueOfLegendsFunctions()
+            _delegate = Delegate()
 
         if api is None:
             api = riotwatcher.RiotWatcher(_API_KEY)
@@ -183,7 +188,12 @@ class LeagueOfLegends(object):
             await BOT.send_message(channel, Responses.LIVE_GAME.format(**game))
 
 
-class LeagueOfLegendsFunctions(object):
+class Delegate(object):
+    @staticmethod
+    async def get_static_data():
+        CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="info")["data"]
+        logging.debug("Collected {} champions".format(len(CHAMPIONS)))
+
     async def get_summoner_info(self, discord_user, params):
         if len(params) <= 1:
             if len(params) == 0:
