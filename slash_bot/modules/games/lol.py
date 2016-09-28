@@ -12,9 +12,8 @@ import datetime, time
 import re
 
 import config
-# TODO: Import all errors into namespace instead of qualifying every time
-import errors
 
+from errors import *
 from models import *
 
 BOT = config.GLOBAL["bot"]
@@ -122,7 +121,7 @@ class LeagueOfLegends(object):
         summoner, region = await _delegate.parse_username_region(params)
 
         if region not in REGIONS.keys():
-            raise errors.SlashBotValueError("Unkown region {}".format(region))
+            raise SlashBotValueError("Unkown region {}".format(region))
 
         user = User.get_or_create(user_id=sender.id, defaults={
             "user_id": sender.id,
@@ -197,7 +196,7 @@ class LeagueOfLegendsFunctions(object):
                         "region": riotuser.region,
                     }
                 except RiotUser.DoesNotExist:
-                    raise errors.SlashBotValueError(
+                    raise SlashBotValueError(
                         "{} no summoner names have been stored for this user."
                         " They must `,lol setname` first.".format(discord_user.mention)
                     )
@@ -213,13 +212,13 @@ class LeagueOfLegendsFunctions(object):
                         "region": riotuser.region,
                     }
                 except RiotUser.DoesNotExist:
-                    raise errors.SlashBotValueError(
+                    raise SlashBotValueError(
                         "{} no summoner names have been stored for this user."
                         " They must `,lol setname` first.".format(discord_user.mention)
                     )
 
             else:
-                raise errors.CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
+                raise CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
 
         else:
             name, region = await self.parse_username_region(params)
@@ -239,7 +238,7 @@ class LeagueOfLegendsFunctions(object):
                 rito_resp = api.get_summoner(summoner["name"])
             except riotwatcher.LoLException as e:
                 if e == riotwatcher.error_404:
-                    raise errors.SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
+                    raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
 
             summoner["id"] = rito_resp["id"]
 
@@ -273,7 +272,7 @@ class LeagueOfLegendsFunctions(object):
                 name = name[1:-1]
 
             except IndexError:
-                raise errors.CommandFormatError("Error understanding what you said. Did you miss any quotes?")
+                raise CommandFormatError("Error understanding what you said. Did you miss any quotes?")
 
         else:
             region = params[-1]
