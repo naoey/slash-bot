@@ -23,3 +23,6 @@ class CommandFormatError(SlashBotError):
 
 class ThirdPartyAPIError(SlashBotError):
     pass
+
+class AssetsError(SlashBotError):
+    pass
