@@ -592,11 +592,11 @@ class Delegate(object):
         for each in player["masteries"]:
             t = self._get_mastery_tree(each["masteryId"])
             if t == 0:
-                ferocity_count += 1
+                ferocity_count += each["rank"]
             elif t == 1:
-                cunning_count += 1
+                cunning_count += each["rank"]
             elif t == 2:
-                resolve_count += 1
+                resolve_count += each["rank"]
 
         return masteries.format(ferocity_count, cunning_count, resolve_count)
 
@@ -613,11 +613,11 @@ class Delegate(object):
         for each in MASTERIES["tree"]["Resolve"]:
             resolve.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
 
-        if str(mastery_id) in ferocity:
+        if mastery_id in ferocity:
             return 0
-        elif str(mastery_id) in cunning:
+        elif mastery_id in cunning:
             return 1
-        elif str(mastery_id) in resolve:
+        elif mastery_id in resolve:
             return 2
         else:
             return -1
