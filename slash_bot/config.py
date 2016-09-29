@@ -16,6 +16,8 @@ PATHS = {
 
     "discord_creds": "./../private/discord.json",
     "rito_creds": "./../private/rito.json",
+
+    "assets": "./../assets/",
 }
 
 MODULES = {

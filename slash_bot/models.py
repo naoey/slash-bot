@@ -19,6 +19,9 @@ class SlashBotDatabase(Model):
     class Meta:
         database = db
 
+    def get_dict(self):
+        return self._data
+
 class User(SlashBotDatabase):
     user_id = CharField(primary_key=True)
     user_name = TextField(index=True)
