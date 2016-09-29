@@ -542,7 +542,7 @@ class Delegate(object):
 
         for each in game["participants"]:
             player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
-            player += ("\n\t- Runes: " + self._get_live_runes(each))
+            # player += ("\n\t- Runes: " + self._get_live_runes(each))
             player += ("\n\t- Masteries: " + self._get_live_masteries(each))
             player += ("\n\t- Champion mastery: " + self._get_live_champion(each, region))
 
@@ -569,14 +569,12 @@ class Delegate(object):
         runes = ""
         for each in player["runes"]:
             runes += "{}x{}".format(
-                RUNES["data"][str(each["runeId"])]["name"],
                 each["count"],
+                RUNES["data"][str(each["runeId"])]["name"],
             )
 
-            if player["runes"].index(each) != len(player["runes"]):
+            if player["runes"].index(each) <= len(player["runes"])-1:
                 runes += ", "
-            else:
-                runes += "\n"
 
         return runes
 
