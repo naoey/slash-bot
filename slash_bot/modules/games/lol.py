@@ -98,7 +98,6 @@ GAME_SUB_TYPES = {
 CHAMPIONS = None
 MASTERIES = None
 RUNES = None
-SUMMONER_ICONS = None
 SUMMONER_SPELLS = None
 
 class LeagueOfLegends(object):
@@ -112,15 +111,13 @@ class LeagueOfLegends(object):
             with open(config.PATHS["rito_creds"], "r") as cf_r:
                 _API_KEY = json.load(cf_r)["api_key"]
 
-        if _delegate is None:
-            _delegate = Delegate()
-
         if api is None:
             api = riotwatcher.RiotWatcher(_API_KEY)
 
-        if CHAMPIONS is None:
-            CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="info")["data"]
-            logging.debug("Collected {} champions".format(len(CHAMPIONS)))
+        Delegate.refresh_static_data()
+
+        if _delegate is None:
+            _delegate = Delegate()
 
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
@@ -190,9 +187,33 @@ class LeagueOfLegends(object):
 
 class Delegate(object):
     @staticmethod
-    async def get_static_data():
-        CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="info")["data"]
-        logging.debug("Collected {} champions".format(len(CHAMPIONS)))
+    def refresh_static_data():
+        global CHAMPIONS
+        global MASTERIES
+        global RUNES
+        global SUMMONER_SPELLS
+
+        if CHAMPIONS is None:
+            CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
+            logging.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
+
+        if MASTERIES is None:
+            MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
+            logging.debug("Collected {} masteries".format(len(MASTERIES["data"])))
+
+        if RUNES is None:
+            RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
+            logging.debug("Collected {} runes".format(len(RUNES["data"])))
+
+        if SUMMONER_SPELLS is None:
+            SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
+            logging.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
+        #
+        # for id_, data in CHAMPIONS["data"].items():
+        #     try:
+        #         AssetStore.get("lol/icons/champions/{}".format(id_))
+        #     except AssetsError:
+        #         AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
 
     async def get_summoner_info(self, discord_user, params):
         if len(params) <= 1:
@@ -455,7 +476,6 @@ class Delegate(object):
             league = api.get_league(summoner_ids=[summoner_id,])
             # TODO: Check why summoner_id is int here
             # TODO: Add favourite role to ranked stats
-
             # TODO: Create the collated object with its data more cleanly
             player_in_league = [x for x in league[str(summoner_id)][0]["entries"] if x["playerOrTeamId"] == str(summoner_id)][0]
             collated["ranked"]["league"] = league[str(summoner_id)][0]["tier"].title()
@@ -521,18 +541,15 @@ class Delegate(object):
         blue_team_bans = ", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None
 
         for each in game["participants"]:
-            player = "• {} ({})"
+            player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
+            player += ("\n\t- Runes: " + self._get_live_runes(each))
+            player += ("\n\t- Masteries: " + self._get_live_masteries(each))
+            # player += self._get_champion_stats(each)
 
             if each["teamId"] == 100:
-                blue_team.append(player.format(
-                    each["summonerName"],
-                    CHAMPIONS[str(each["championId"])]["name"],
-                ))
+                blue_team.append(player)
             else:
-                red_team.append(player.format(
-                    each["summonerName"],
-                    CHAMPIONS[str(each["championId"])]["name"],
-                ))
+                red_team.append(player)
 
         red_team = "\n".join(red_team).strip()
         blue_team = "\n".join(blue_team).strip()
@@ -544,6 +561,66 @@ class Delegate(object):
             "blue_team": blue_team,
             "blue_team_bans": blue_team_bans,
         }
+
+    def _get_live_runes(self, player):
+        if player is None:
+            return ""
+
+        runes = ""
+        for each in player["runes"]:
+            runes += "{}x{}".format(
+                RUNES["data"][str(each["runeId"])]["name"],
+                each["count"],
+            )
+
+            if player["runes"].index(each) != len(player["runes"]):
+                runes += ", "
+            else:
+                runes += "\n"
+
+        return runes
+
+    def _get_live_masteries(self, player):
+        if player is None:
+            return ""
+
+        masteries = "{}-{}-{}"
+        ferocity_count = 0
+        cunning_count = 0
+        resolve_count = 0
+
+        for each in player["masteries"]:
+            t = self._get_mastery_tree(each["masteryId"])
+            if t == 0:
+                ferocity_count += 1
+            elif t == 1:
+                cunning_count += 1
+            elif t == 2:
+                resolve_count += 1
+
+        return masteries.format(ferocity_count, cunning_count, resolve_count)
+
+    def _get_mastery_tree(self, mastery_id):
+        ferocity = []
+        for each in MASTERIES["tree"]["Ferocity"]:
+            ferocity.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+        cunning = []
+        for each in MASTERIES["tree"]["Cunning"]:
+            cunning.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+        resolve = []
+        for each in MASTERIES["tree"]["Resolve"]:
+            resolve.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+        if str(mastery_id) in ferocity:
+            return 0
+        elif str(mastery_id) in cunning:
+            return 1
+        elif str(mastery_id) in resolve:
+            return 2
+        else:
+            return -1
 
 class Responses:
     UPDATED_LOL_USERNAME = "{sender}\nUpdated your LoL username to {name} on region {region} 👍"
