@@ -544,7 +544,7 @@ class Delegate(object):
             player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
             player += ("\n\t- Runes: " + self._get_live_runes(each))
             player += ("\n\t- Masteries: " + self._get_live_masteries(each))
-            # player += self._get_champion_stats(each)
+            player += ("\n\t- Champion mastery: " + self._get_live_champion(each, region))
 
             if each["teamId"] == 100:
                 blue_team.append(player)
@@ -621,6 +621,21 @@ class Delegate(object):
             return 2
         else:
             return -1
+
+    def _get_live_champion(self, player, region):
+        if not player:
+            return ""
+
+        mastery = api.get_champion_mastery(
+            summoner_id=player["summonerId"],
+            champion_id=player["championId"],
+            region=region
+        )
+
+        return "Level {}, score {}".format(
+            mastery["championLevel"],
+            mastery["championPoints"]
+        )
 
 class Responses:
     UPDATED_LOL_USERNAME = "{sender}\nUpdated your LoL username to {name} on region {region} 👍"
