@@ -156,7 +156,7 @@ class LeagueOfLegends(object):
                 region=region)
             )
         else:
-            await BOT.send_message(channel, Response.STORED_LOL_USERNAME.format(
+            await BOT.send_message(channel, Responses.STORED_LOL_USERNAME.format(
                 name=sender.mention,
                 region=region)
             )
@@ -624,11 +624,16 @@ class Delegate(object):
         if not player:
             return ""
 
-        mastery = api.get_champion_mastery(
-            summoner_id=player["summonerId"],
-            champion_id=player["championId"],
-            region=region
-        )
+        mastery = None
+        try:
+            mastery = api.get_champion_mastery(
+                summoner_id=player["summonerId"],
+                champion_id=player["championId"],
+                region=region
+            )
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_204:
+                return "Level 0, score 0"
 
         return "Level {}, score {}".format(
             mastery["championLevel"],
