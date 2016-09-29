@@ -422,10 +422,9 @@ class Delegate(object):
                         }
 
             most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
-            champion = api.static_get_champion(most_played["id"], champ_data="info")
 
             collated["recent"] = {
-                "name": champion["name"],
+                "name": CHAMPIONS["data"][str(most_played["id"])]["name"],
                 "plays": most_played["plays"],
                 "wins": most_played["wins"],
                 "kda": "{}/{}/{}".format(
@@ -437,7 +436,6 @@ class Delegate(object):
 
             score = api.get_mastery_score(summoner_id, region)
             top_champion = api.get_top_champions(summoner_id, region, count=1)[0]
-            champion = api.static_get_champion(top_champion["championId"], champ_data="info")
 
             collated["mastery"] = {
                 "level": top_champion["championLevel"],
@@ -446,7 +444,7 @@ class Delegate(object):
                 ).strftime("%d-%m-%Y %I:%M %p"),
                 "score": top_champion["championPoints"],
                 "total_mastery": score,
-                "champion": champion["name"],
+                "champion": CHAMPIONS["data"][str(top_champion["championId"])]["name"]
             }
 
         except riotwatcher.LoLException as e:
@@ -460,10 +458,9 @@ class Delegate(object):
 
             # TODO: Combine all champion static data requests
             favourite_champion = max([x for x in ranked["champions"] if x["id"] != 0], key=lambda d: d["stats"]["totalSessionsPlayed"])
-            favourite_champion_name = api.static_get_champion(favourite_champion["id"], champ_data="info")
 
             collated["ranked"]["fav"] = {
-                "name": favourite_champion_name["name"],
+                "name": CHAMPIONS["data"][str(favourite_champion["id"])]["name"],
                 "plays": favourite_champion["stats"]["totalSessionsPlayed"],
                 "wins": favourite_champion["stats"]["totalSessionsWon"],
                 "kda": "{}/{}/{}".format(
