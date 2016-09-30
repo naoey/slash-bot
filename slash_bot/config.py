@@ -26,6 +26,12 @@ MODULES = {
         "class": "LeagueOfLegends",
         "active": True,
         "prefix": "lol",
+        "config": {
+            "static_refresh_interval": {
+                "value": "604800",
+                "description": "The time interval in seconds before refreshing static data"
+            }
+        }
     },
     "osu!": {
         "location": "games.osu.Osu",

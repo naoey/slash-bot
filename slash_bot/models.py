@@ -53,6 +53,11 @@ class RiotUser(SlashBotDatabase):
     last_update_data = TextField(null=True)
     last_updated = DateTimeField(null=True)
 
+class RiotStaticData(SlashBotDatabase):
+    key = CharField(primary_key=True)
+    value = TextField(null=False)
+    updated = DateTimeField(null=False)
+
 class Meta:
     primary_key = CompositeKey("summoner_name", "region", "user")
 
@@ -61,6 +66,7 @@ db.create_tables([
     Server,
     Channel,
     BotStats,
+    RiotStaticData,
 ], safe=True)
 
 logging.debug("Created tables")
