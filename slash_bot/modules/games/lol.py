@@ -192,9 +192,6 @@ class LeagueOfLegends(object):
     async def cmd_setname(self, sender, channel, params):
         summoner, region = await _delegate.parse_username_region(params)
 
-        if region not in REGIONS.keys():
-            raise SlashBotValueError("Unkown region {}".format(region))
-
         user = User.get_or_create(user_id=sender.id, defaults={
             "user_id": sender.id,
             "user_name": sender.name,
@@ -220,13 +217,13 @@ class LeagueOfLegends(object):
 
                 setattr(riotuser, field, value)
 
-            await BOT.send_message(channel, Responses.UPDATED_LOL_USERNAME.format(
+            await BOT.send_message(channel, Responses.english["UPDATED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 name=summoner,
                 region=region)
             )
         else:
-            await BOT.send_message(channel, Responses.STORED_LOL_USERNAME.format(
+            await BOT.send_message(channel, Responses.english["STORED_LOL_USERNAME"].format(
                 name=sender.mention,
                 region=region)
             )
