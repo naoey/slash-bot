@@ -23,6 +23,7 @@ api = None
 
 _API_KEY = None
 
+logger = logging.getLogger(__name__)
 REGIONS = {
     "NA": "North America",
     "EUW": "Europe West",
@@ -115,6 +116,12 @@ class LeagueOfLegends(object):
             api = riotwatcher.RiotWatcher(_API_KEY)
 
         Delegate.refresh_static_data()
+        logger.debug("Collecting static data")
+                logger.debug("Champions already exist")
+                logger.debug("Masteries already exist")
+                logger.debug("Runes already exist")
+                logger.debug("Summoner spells already exist")
+            logger.debug("One or more static data keys are missing or have values older than the specified interval, refreshing all")
 
         if _delegate is None:
             _delegate = Delegate()
@@ -169,6 +176,7 @@ class LeagueOfLegends(object):
         player_info = await _delegate.player_summary(summoner["id"], summoner["region"])
 
         await BOT.send_message(channel, Responses.PLAYER_SUMMARY.format(**player_info))
+            logger.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
 
     async def cmd_game(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
@@ -195,19 +203,19 @@ class Delegate(object):
 
         if CHAMPIONS is None:
             CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
-            logging.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
+            logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
 
         if MASTERIES is None:
             MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
-            logging.debug("Collected {} masteries".format(len(MASTERIES["data"])))
+            logger.debug("Collected {} masteries".format(len(MASTERIES["data"])))
 
         if RUNES is None:
             RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
-            logging.debug("Collected {} runes".format(len(RUNES["data"])))
+            logger.debug("Collected {} runes".format(len(RUNES["data"])))
 
         if SUMMONER_SPELLS is None:
             SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
-            logging.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
+            logger.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
         #
         # for id_, data in CHAMPIONS["data"].items():
         #     try:
@@ -278,7 +286,7 @@ class Delegate(object):
                 ).execute()
 
             if r < 1:
-                logging.debug(
+                logger.debug(
                     ("Local player info/summoner id wasn't updated for summoner {} on {}."
                     "Either this user isn't stored locally or there was an error updating.").format(
                         summoner["name"],
