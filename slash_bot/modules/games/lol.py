@@ -26,17 +26,30 @@ _API_KEY = None
 logger = logging.getLogger(__name__)
 
 REGIONS = {
-    "NA": "North America",
-    "EUW": "Europe West",
-    "EUNE": "Europe Nordic & East",
-    "JP": "Japan",
-    "RU": "Russia",
-    "KR": "Korea",
-    "LAS": "Latin America South",
-    "LAN": "Latin America North",
-    "TK": "Turkey",
-    "BR": "Brazil",
-    "OCE": "Oceania",
+    "NA": riotwatcher.NORTH_AMERICA,
+    "EUW": riotwatcher.EUROPE_WEST,
+    "EUNE": riotwatcher.EUROPE_NORDIC_EAST,
+    "JP": riotwatcher.JAPAN,
+    "RU": riotwatcher.RUSSIA,
+    "KR": riotwatcher.KOREA,
+    "LAS": riotwatcher.LATIN_AMERICA_SOUTH,
+    "LAN": riotwatcher.LATIN_AMERICA_NORTH,
+    "TK": riotwatcher.TURKEY,
+    "BR": riotwatcher.BRAZIL,
+    "OCE": riotwatcher.OCEANIA,
+}
+
+REGION_NAMES = {
+    riotwatcher.NORTH_AMERICA: "North America",
+    riotwatcher.EUROPE_WEST: "EU West",
+    riotwatcher.EUROPE_NORDIC_EAST: "EU Nordic and East",
+    riotwatcher.JAPAN: "Japan",
+    riotwatcher.KOREA: "Korea",
+    riotwatcher.LATIN_AMERICA_NORTH: "Latin America North",
+    riotwatcher.LATIN_AMERICA_SOUTH: "Latin America South",
+    riotwatcher.TURKEY: "Turkey",
+    riotwatcher.BRAZIL: "Brazil",
+    riotwatcher.OCEANIA: "Oceania",
 }
 
 PLAYER_POSITION = {
