@@ -184,7 +184,7 @@ class LeagueOfLegends(object):
                 {"key":"SUMMONER_SPELLS", "value":json.dumps(SUMMONER_SPELLS), "updated":timestamp},
             ]
 
-            RiotStaticData.insert_many(static_data).upsert()
+            RiotStaticData.insert_many(static_data).execute()
 
         if _delegate is None:
             _delegate = Delegate()
