@@ -394,17 +394,60 @@ class LeagueOfLegends(object):
     async def cmd_game(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
 
-        game = await _delegate.live_game(summoner["id"], summoner["region"])
+        try:
+            platform = riotwatcher.platforms[summoner["region"]]
+        except KeyError:
+            platform = None
 
-        if game is None:
-            await BOT.send_message(channel, Responses.NOT_IN_GAME.format(
-                name=summoner["name"],
-                region=summoner["region"])
+        try:
+            game = api.get_current_game(summoner["id"], platform, summoner["region"])
+
+            red_team = []
+            red_team_bans = []
+            blue_team = []
+            blue_team_bans = []
+
+            for each in game["bannedChampions"]:
+                if each["teamId"] == 100:
+                    blue_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+                else:
+                    red_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+
+            for each in game["participants"]:
+                player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
+                # player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
+                player += ("\n\t- Masteries: " + _delegate.get_player_masteries(each))
+                player += ("\n\t- Champion mastery: " + _delegate.get_player_champion(each, summoner["region"]))
+
+                if each["teamId"] == 100:
+                    blue_team.append(player)
+                else:
+                    red_team.append(player)
+
+            summary = "```py\n{}\n```".format(
+                Responses.english["LIVE_GAME"].format(
+                    mode = game["gameMode"].title(),
+                    duration = time.strftime("%M:%S", time.gmtime(game["gameLength"])),
+                    start_time = datetime.datetime.fromtimestamp(
+                    int(game["gameStartTime"])/1000
+                    ).strftime("%I:%M %p"),
+                    red_team_bans = ", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None,
+                    blue_team_bans = ", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None,
+                    red_team = "\n".join(red_team).strip(),
+                    blue_team = "\n".join(blue_team).strip(),
+                )
             )
 
-        else:
-            await BOT.send_message(channel, Responses.LIVE_GAME.format(**game))
+            await BOT.send_message(channel, summary)
 
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_404:
+                await BOT.send_message(channel, Responses.english["NOT_IN_GAME"].format(
+                    name=summoner["name"],
+                    region=REGION_NAMES[summoner["region"]])
+                )
+            else:
+                riot_api_error()
 
 class Delegate(object):
     @staticmethod
