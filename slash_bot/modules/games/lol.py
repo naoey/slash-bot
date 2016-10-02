@@ -24,6 +24,7 @@ api = None
 _API_KEY = None
 
 logger = logging.getLogger(__name__)
+
 REGIONS = {
     "NA": "North America",
     "EUW": "Europe West",
@@ -105,12 +106,16 @@ CONFIG = config.MODULES["League of Legends"]["config"]
 
 def riot_api_error():
     return ThirdPartyAPIError("Error communicating with the Riot Games API")
+
 class LeagueOfLegends(object):
     def __init__(self):
         global _delegate
         global _API_KEY
         global api
         global CHAMPIONS
+        global MASTERIES
+        global RUNES
+        global SUMMONER_SPELLS
 
         if _API_KEY is None:
             with open(config.PATHS["rito_creds"], "r") as cf_r:
@@ -119,13 +124,54 @@ class LeagueOfLegends(object):
         if api is None:
             api = riotwatcher.RiotWatcher(_API_KEY)
 
-        Delegate.refresh_static_data()
+        current_time = datetime.datetime.now()
         logger.debug("Collecting static data")
+        try:
+            CHAMPIONS = RiotStaticData.get(key="CHAMPIONS")
+            if int((current_time - CHAMPIONS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+                Delegate.refresh_static_data(key="CHAMPIONS")
+                RiotStaticData.update(value=json.dumps(CHAMPIONS)).where(key == "CHAMPIONS").execute()
+            else:
                 logger.debug("Champions already exist")
+                CHAMPIONS = json.loads(CHAMPIONS.value)
+
+            MASTERIES = RiotStaticData.get(key="MASTERIES")
+            if int((current_time - MASTERIES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+                Delegate.refresh_static_data(key="MASTERIES")
+                RiotStaticData.update(value=json.dumps(MASTERIES)).where(key == "MASTERIES").execute()
+            else:
                 logger.debug("Masteries already exist")
+                MASTERIES = json.loads(MASTERIES.value)
+
+            RUNES = RiotStaticData.get(key="RUNES")
+            if int((current_time - RUNES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+                Delegate.refresh_static_data(key="RUNES")
+                RiotStaticData.update(value=json.dumps(RUNES)).where(key == "RUNES").execute()
+            else:
                 logger.debug("Runes already exist")
+                RUNES = json.loads(RUNES.value)
+
+            SUMMONER_SPELLS = RiotStaticData.get(key="SUMMONER_SPELLS")
+            if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+                Delegate.refresh_static_data(key="SUMMONER_SPELLS")
+                RiotStaticData.update(value=json.dumps(SUMMONER_SPELLS)).where(key == "SUMMONER_SPELLS").execute()
+            else:
                 logger.debug("Summoner spells already exist")
+                SUMMONER_SPELLS = json.loads(SUMMONER_SPELLS.value)
+
+        except RiotStaticData.DoesNotExist:
             logger.debug("One or more static data keys are missing or have values older than the specified interval, refreshing all")
+            Delegate.refresh_static_data()
+            timestamp = datetime.datetime.now()
+
+            static_data = [
+                {"key":"CHAMPIONS", "value":json.dumps(CHAMPIONS), "updated":timestamp},
+                {"key":"MASTERIES", "value":json.dumps(MASTERIES), "updated":timestamp},
+                {"key":"RUNES", "value":json.dumps(RUNES), "updated":timestamp},
+                {"key":"SUMMONER_SPELLS", "value":json.dumps(SUMMONER_SPELLS), "updated":timestamp},
+            ]
+
+            RiotStaticData.insert_many(static_data).upsert()
 
         if _delegate is None:
             _delegate = Delegate()
