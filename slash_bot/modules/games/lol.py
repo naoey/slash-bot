@@ -231,12 +231,165 @@ class LeagueOfLegends(object):
         riotuser.save()
 
     async def cmd_summoner(self, sender, channel, params):
-        summoner = await _delegate.get_summoner_info(sender, params)
+        local_summoner = await _delegate.get_summoner_info(sender, params)
 
-        player_info = await _delegate.player_summary(summoner["id"], summoner["region"])
+        if local_summoner["last_updated"] is not None and (datetime.datetime.now()-local_summoner["last_updated"]).total_seconds()/60 < 5:
+            return await BOT.send_message(channel, json.loads(local_summoner["last_update_data"]))
 
-        await BOT.send_message(channel, Responses.PLAYER_SUMMARY.format(**player_info))
-            logger.error("There was an error updating player info for summoner {} {}".format(summoner_id, region))
+        summoner = api.get_summoner(_id=local_summoner["id"], region=local_summoner["region"])
+
+        try:
+            stats = api.get_stat_summary(local_summoner["id"], region=local_summoner["region"])
+
+            unranked_stats = [stat_summary for stat_summary in stats["playerStatSummaries"]
+                                if stat_summary["playerStatSummaryType"] == "Unranked"][0]
+
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_404:
+                raise SlashBotValueError("This summoner doesn't seem to have played any games!")
+
+        champions_played = {}
+        try:
+            recent_games = api.get_recent_games(local_summoner["id"], region=local_summoner["region"])
+        except riotwacher.LoLException as e:
+            if e == riotwatcher.error_404:
+                recent_games = []
+                champions_played = {
+                    "id": "-",
+                    "plays": "-",
+                    "wins": "-",
+                    "kills": "-",
+                    "assists": "-",
+                    "deaths": "-",
+                }
+            else:
+                riot_api_error()
+
+        for game in recent_games["games"]:
+            if game["subType"] != "BOT":
+                try:
+                    champions_played[game["championId"]]["plays"] += 1
+                    champions_played[game["championId"]]["kills"] += game["stats"]["championsKilled"]
+                    champions_played[game["championId"]]["assists"] += game["stats"]["assists"]
+                    champions_played[game["championId"]]["deaths"] += game["stats"]["numDeaths"]
+
+                    if game["stats"]["win"]:
+                        champions_played[game["championId"]]["wins"] += 1
+
+                except KeyError:
+                    champions_played[game["championId"]] = {
+                        "id": game["championId"],
+                        "plays": 1,
+                        "wins": 1 if game["stats"]["win"] else 0,
+                        "kills": 0 if "championsKilled" not in game["stats"].keys() else game["stats"]["championsKilled"],
+                        "assists": 0 if "numDeaths" not in game["stats"].keys() else game["stats"]["numDeaths"],
+                        "deaths": 0 if "assists" not in game["stats"].keys() else game["stats"]["assists"],
+                    }
+
+        most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
+        general_info = Responses.english["PLAYER_SUMMARY_GENERAL"].format(
+            name = summoner["name"],
+            level = summoner["summonerLevel"],
+            region = REGION_NAMES[local_summoner["region"]],
+            recent = {
+                "name": CHAMPIONS["data"][str(most_played["id"])]["name"],
+                "plays": most_played["plays"],
+                "wins": most_played["wins"],
+                "kda": "{}/{}/{}".format(
+                    most_played["kills"],
+                    most_played["deaths"],
+                    most_played["assists"],
+                ),
+            },
+            normal_wins = unranked_stats["wins"],
+        )
+
+        try:
+            score = api.get_mastery_score(local_summoner["id"], local_summoner["region"])
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_204:
+                score = None
+        try:
+            top_champion = api.get_top_champions(local_summoner["id"], local_summoner["region"], count=1)[0]
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_404:
+                top_champion = None
+            else:
+                riot_api_error()
+
+        mastery_info = Responses.english["PLAYER_SUMMARY_MASTERY"].format(
+            total_mastery = score if score else 0,
+            champion = CHAMPIONS["data"][str(top_champion["championId"])]["name"] if top_champion else None,
+            level = top_champion["championLevel"] if top_champion else 0,
+            last_play = datetime.datetime.fromtimestamp(
+                int(top_champion["lastPlayTime"])/1000
+            ).strftime("%d-%m-%Y %I:%M %p") if top_champion else "-",
+            score = top_champion["championPoints"] if top_champion else 0,
+        )
+
+        try:
+            ranked_stats = api.get_ranked_stats(local_summoner["id"], region=local_summoner["region"])
+            favourite_champion = max([x for x in ranked_stats["champions"] if x["id"] != 0], key=lambda d: d["stats"]["totalSessionsPlayed"])
+            league = api.get_league(summoner_ids=[local_summoner["id"],], region=local_summoner["region"])
+            player_in_league = [x for x in league[str(local_summoner["id"])][0]["entries"] if x["playerOrTeamId"] == str(local_summoner["id"])][0]
+            ranked_general = [x for x in ranked_stats["champions"] if x["id"] == 0][0]["stats"]
+
+            ranked_info = Responses.english["PLAYER_SUMMARY_RANKED"].format(
+                fav = {
+                    "name": CHAMPIONS["data"][str(favourite_champion["id"])]["name"],
+                    "plays": favourite_champion["stats"]["totalSessionsPlayed"],
+                    "wins": favourite_champion["stats"]["totalSessionsWon"],
+                    "kda": "{}/{}/{}".format(
+                        favourite_champion["stats"]["totalChampionKills"],
+                        favourite_champion["stats"]["totalDeathsPerSession"],
+                        favourite_champion["stats"]["totalAssists"]
+                    )
+                },
+                league = league[str(local_summoner["id"])][0]["tier"].title(),
+                division = player_in_league["division"],
+                points = player_in_league["leaguePoints"],
+                wins = player_in_league["wins"],
+                losses = player_in_league["losses"],
+                kills_avg = round(ranked_general["totalChampionKills"]/ranked_general["totalSessionsPlayed"], 2),
+                deaths_avg = round(ranked_general["totalDeathsPerSession"]/ranked_general["totalSessionsPlayed"], 2),
+                assists_avg = round(ranked_general["totalAssists"]/ranked_general["totalSessionsPlayed"], 2),
+                kills = ranked_general["totalChampionKills"],
+                deaths = ranked_general["totalDeathsPerSession"],
+                assists = ranked_general["totalAssists"],
+                largest_spree = ranked_general["maxLargestKillingSpree"],
+                double = ranked_general["totalDoubleKills"],
+                triple = ranked_general["totalTripleKills"],
+                quadra = ranked_general["totalQuadraKills"],
+                penta = ranked_general["totalPentaKills"],
+                cs = ranked_general["totalMinionKills"],
+                gold = ranked_general["totalGoldEarned"],
+                towers = ranked_general["totalTurretsKilled"],
+            )
+        except riotwatcher.LoLException as e:
+            if e == riotwatcher.error_404:
+                ranked_info = "No ranked stats for this player"
+            else:
+                import pprint
+                pprint.pprint(e.__dict__)
+                riot_api_error()
+
+        summary = "```py\n{}\n{}\n----------------------\nRanked Stats\n----------------------\n{}\n```".format(
+            general_info,
+            mastery_info,
+            ranked_info,
+        )
+
+        r = RiotUser.update(last_update_data=json.dumps(summary), last_updated=datetime.datetime.now()).where(
+                (RiotUser.summoner_id == local_summoner["id"]) & (RiotUser.region == local_summoner["region"])
+            ).execute()
+
+        if r < 1:
+            logger.error("There was an error updating player info for summoner {} {}".format(
+                local_summoner["id"],
+                local_summoner["region"]
+            ))
+
+        await BOT.send_message(channel, summary)
 
     async def cmd_game(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
