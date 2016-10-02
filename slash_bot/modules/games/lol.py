@@ -101,6 +101,10 @@ MASTERIES = None
 RUNES = None
 SUMMONER_SPELLS = None
 
+CONFIG = config.MODULES["League of Legends"]["config"]
+
+def riot_api_error():
+    return ThirdPartyAPIError("Error communicating with the Riot Games API")
 class LeagueOfLegends(object):
     def __init__(self):
         global _delegate
