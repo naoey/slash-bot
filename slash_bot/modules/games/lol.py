@@ -191,6 +191,7 @@ class LeagueOfLegends(object):
             _delegate = Delegate()
 
     async def cmd_setname(self, sender, channel, params):
+        await BOT.send_typing(channel)
         summoner, region = await _delegate.parse_username_region(params)
 
         user = User.get_or_create(user_id=sender.id, defaults={
@@ -232,8 +233,8 @@ class LeagueOfLegends(object):
         riotuser.save()
 
     async def cmd_summoner(self, sender, channel, params):
-        BOT.send_typing(channel)
-        local_summoner = await _delegate.get_summoner_info(sender, params)
+        await BOT.send_typing(channel)
+        local_summoner = _delegate.get_summoner_info(sender, params)
 
         if local_summoner["last_updated"] is not None and (datetime.datetime.now()-local_summoner["last_updated"]).total_seconds()/60 < 5:
             return await BOT.send_message(channel, json.loads(local_summoner["last_update_data"]))
@@ -392,8 +393,8 @@ class LeagueOfLegends(object):
         await BOT.send_message(channel, summary)
 
     async def cmd_game(self, sender, channel, params):
-        summoner = await _delegate.get_summoner_info(sender, params)
-        BOT.send_typing(channel)
+        summoner = _delegate.get_summoner_info(sender, params)
+        await BOT.send_typing(channel)
 
         try:
             platform = riotwatcher.platforms[summoner["region"]]
@@ -416,9 +417,9 @@ class LeagueOfLegends(object):
 
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
-                # player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
-                player += ("\n\t- Masteries: " + _delegate.get_player_masteries(each))
                 player += ("\n\t- Champion mastery: " + _delegate.get_player_champion(each, summoner["region"]))
+                player += ("\n\t- Masteries: " + _delegate.get_player_masteries(each))
+                player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
 
                 if each["teamId"] == 100:
                     blue_team.append(player)
@@ -480,7 +481,7 @@ class Delegate(object):
         #     except AssetsError:
         #         AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
 
-    async def get_summoner_info(self, discord_user, params):
+    def get_summoner_info(self, discord_user, params):
         if len(params) <= 1:
             if len(params) == 0:
                 uid = discord_user.id
@@ -521,7 +522,7 @@ class Delegate(object):
                 raise CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
 
         else:
-            name, region = await self.parse_username_region(params)
+            name, region = self.parse_username_region(params)
             summoner = {
                 "name": name,
                 "id": None,
@@ -530,9 +531,9 @@ class Delegate(object):
                 "last_update_data": None,
             }
 
-        return await self._update_summoner_info(summoner)
+        return self._update_summoner_info(summoner)
 
-    async def _update_summoner_info(self, summoner):
+    def _update_summoner_info(self, summoner):
         if summoner["id"] is None:
             try:
                 rito_resp = api.get_summoner(summoner["name"], region=summoner["region"])
@@ -557,7 +558,7 @@ class Delegate(object):
 
         return summoner
 
-    async def parse_username_region(self, params):
+    def parse_username_region(self, params):
         if params[0].startswith("\"") or params[0].startswith("'"):
             terminus = params[0][0]
             name = params.pop(0)
@@ -586,7 +587,7 @@ class Delegate(object):
 
         return (name, region)
 
-    async def match_details(self, match_id, region):
+    def match_details(self, match_id, region):
         pass
 
     def get_player_runes(self, player):
@@ -595,13 +596,10 @@ class Delegate(object):
 
         runes = ""
         for each in player["runes"]:
-            runes += "{}x{}".format(
-                each["count"],
-                RUNES["data"][str(each["runeId"])]["name"],
+            runes += "\n\t\t♦ {count} x {rune}".format(
+                count = each["count"],
+                rune = RUNES["data"][str(each["runeId"])]["name"],
             )
-
-            if player["runes"].index(each) <= len(player["runes"])-1:
-                runes += ", "
 
         return runes
 
