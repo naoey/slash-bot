@@ -50,6 +50,7 @@ Module prefix: `lol`
 | `game`     | `@<discord_user>` or `<summoner_name> <region>`  | Shows current game info for summoner                                                          |
 
 *Note that all region values must be abbreviated as per Riot's speicification (NA, EUW, EUNE etc.)*
+
 ---
 SlashBot isn't meant to be a public bot because some APIs impose limits which make it unfeasible for use in a larger number of servers with many users. For best results you should host your own instance for use in your server.
 
