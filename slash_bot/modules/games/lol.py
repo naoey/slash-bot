@@ -221,12 +221,12 @@ class LeagueOfLegends(object):
             await BOT.send_message(channel, Responses.english["UPDATED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 name=summoner,
-                region=region)
+                region=REGION_NAMES["region"])
             )
         else:
             await BOT.send_message(channel, Responses.english["STORED_LOL_USERNAME"].format(
                 name=sender.mention,
-                region=region)
+                region=REGION_NAMES["region"])
             )
 
         riotuser.save()
