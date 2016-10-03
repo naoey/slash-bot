@@ -38,12 +38,14 @@ MODULES = {
         "class": "Osu",
         "active": False,
         "prefix": "osu",
+        "config": {},
     },
     "MyAnimeList": {
         "location": "anime.mal.MyAnimeList",
         "class": "MyAnimeList",
         "active": False,
         "prefix": "mal",
+        "config": {},
     },
 }
 

@@ -103,8 +103,8 @@ class SlashBot(discord.Client):
                     logging.exception("Couldn't import module '{}'".format(name))
 
                 except Exception as e:
-                    logging.error("Unkown error activating module {}".format(name))
                     logging.debug("{}".format(e))
+                    logging.exception("Unkown error activating module {}".format(name))
 
         logging.info("Registered {} active modules".format(config.STATS.MODULES_ACTIVE))
         logging.debug("Registered modules map is {}".format(self.modules_map))
