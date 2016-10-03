@@ -232,6 +232,7 @@ class LeagueOfLegends(object):
         riotuser.save()
 
     async def cmd_summoner(self, sender, channel, params):
+        BOT.send_typing(channel)
         local_summoner = await _delegate.get_summoner_info(sender, params)
 
         if local_summoner["last_updated"] is not None and (datetime.datetime.now()-local_summoner["last_updated"]).total_seconds()/60 < 5:
@@ -370,8 +371,6 @@ class LeagueOfLegends(object):
             if e == riotwatcher.error_404:
                 ranked_info = "No ranked stats for this player"
             else:
-                import pprint
-                pprint.pprint(e.__dict__)
                 riot_api_error()
 
         summary = "```py\n{}\n{}\n----------------------\nRanked Stats\n----------------------\n{}\n```".format(
@@ -394,6 +393,7 @@ class LeagueOfLegends(object):
 
     async def cmd_game(self, sender, channel, params):
         summoner = await _delegate.get_summoner_info(sender, params)
+        BOT.send_typing(channel)
 
         try:
             platform = riotwatcher.platforms[summoner["region"]]
