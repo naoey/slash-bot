@@ -410,9 +410,9 @@ class LeagueOfLegends(object):
 
             for each in game["bannedChampions"]:
                 if each["teamId"] == 100:
-                    blue_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+                    blue_team_bans.append(CHAMPIONS["data"][str(each["championId"])]["name"])
                 else:
-                    red_team_bans.append(CHAMPIONS[str(each["championId"])]["name"])
+                    red_team_bans.append(CHAMPIONS["data"][str(each["championId"])]["name"])
 
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
