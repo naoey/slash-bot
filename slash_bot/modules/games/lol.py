@@ -495,7 +495,7 @@ class LeagueOfLegends(object):
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
                 player += ("\n\t- Champion mastery: " + _delegate.get_player_champion(each, summoner["region"]))
-                player += ("\n\t- Masteries: " + _delegate.get_player_masteries(each))
+                player += ("\n\t- Masteries: {ferocity}-{cunning}-{resolve}".format(**Delegate.get_masteries(each["masteries"])))
                 player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
 
                 if each["teamId"] == 100:
