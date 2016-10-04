@@ -654,7 +654,7 @@ class Delegate(object):
                 if e == riotwatcher.error_404:
                     raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
 
-            summoner["id"] = rito_resp["id"]
+            summoner["id"] = str(rito_resp["id"])
 
             r = RiotUser.update(summoner_id=rito_resp["id"]).where(
                 (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
