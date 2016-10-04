@@ -560,7 +560,33 @@ class LeagueOfLegends(object):
             if idx <= len(rune_page_data):
                 runes_summary += "\n"
 
-        await BOT.send_message(channel, "```py\n{}```\n".format(runes_summary))
+        await BOT.send_message(channel, "```py\n{}\n```".format(runes_summary))
+
+    async def cmd_masteries(self, sender, channel, params):
+        summoner = _delegate.get_summoner_info(sender, params)
+        await BOT.send_typing(channel)
+
+        try:
+            mastery_pages = api.get_mastery_pages([summoner["id"], ], region=summoner["region"])
+        except riotwatcher.LoLException:
+            raise SlashBotValueError("Error getting mastery pages for this summoner")
+
+        masteries_summary = "Summoner level: {}\n".format(summoner["level"])
+        idx = 1
+        for page in mastery_pages[summoner["id"]]["pages"]:
+            try:
+                masteries_summary += "• {page}: {ferocity}-{cunning}-{resolve}".format(
+                    page=page["name"],
+                    **Delegate.get_masteries(page["masteries"]),
+                )
+            except KeyError:
+                masteries_summary += "• {page}: 0-0-0".format(page=page["name"])
+
+            idx += 1
+            if idx <= len(mastery_pages[summoner["id"]]["pages"]):
+                masteries_summary += "\n"
+
+        await BOT.send_message(channel, "```py\n{}\n```".format(masteries_summary))
 
 
 # TODO: Get rid of Delegate class and make its functions module level
@@ -746,33 +772,33 @@ class Delegate(object):
 
         return stats
 
-    def get_player_masteries(self, player):
-        if player is None:
-            return ""
+    @staticmethod
+    def get_masteries(page):
+        masteries = {
+            "ferocity": 0,
+            "cunning": 0,
+            "resolve": 0,
+        }
+        id_key = "id"
+        try:
+            if page[0][id_key]:
+                pass
+        except KeyError:
+            id_key = "masteryId"
 
-        masteries = "{}-{}-{}"
-        ferocity_count = 0
-        cunning_count = 0
-        resolve_count = 0
-
-        for each in player["masteries"]:
-            t = self._get_mastery_tree(each["masteryId"])
+        for mastery in page:
+            t = Delegate.get_mastery_tree(mastery[id_key])
             if t == 0:
-                ferocity_count += each["rank"]
+                masteries["ferocity"] += mastery["rank"]
             elif t == 1:
-                cunning_count += each["rank"]
+                masteries["cunning"] += mastery["rank"]
             elif t == 2:
-                resolve_count += each["rank"]
+                masteries["resolve"] += mastery["rank"]
 
-        return masteries.format(ferocity_count, cunning_count, resolve_count)
+        return masteries
 
-    def get_player_mastery_page(self, player):
-        pass
-
-    def get_mastery_stats(self, masteries):
-        pass
-
-    def _get_mastery_tree(self, mastery_id):
+    @staticmethod
+    def get_mastery_tree(mastery_id):
         ferocity = []
         for each in MASTERIES["tree"]["Ferocity"]:
             ferocity.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
