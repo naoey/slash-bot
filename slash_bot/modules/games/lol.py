@@ -265,7 +265,7 @@ class LeagueOfLegends(object):
 
     async def cmd_setname(self, sender, channel, params):
         await BOT.send_typing(channel)
-        summoner, region = await _delegate.parse_username_region(params)
+        summoner, region = _delegate.parse_username_region(params)
 
         user = User.get_or_create(user_id=sender.id, defaults={
             "user_id": sender.id,
@@ -295,12 +295,12 @@ class LeagueOfLegends(object):
             await BOT.send_message(channel, Responses.english["UPDATED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 name=summoner,
-                region=REGION_NAMES["region"])
+                region=REGION_NAMES[region])
             )
         else:
             await BOT.send_message(channel, Responses.english["STORED_LOL_USERNAME"].format(
-                name=sender.mention,
-                region=REGION_NAMES["region"])
+                sender=sender.mention,
+                region=REGION_NAMES[region])
             )
 
         riotuser.save()
@@ -495,7 +495,7 @@ class LeagueOfLegends(object):
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
                 player += ("\n\t- Champion mastery: " + _delegate.get_player_champion(each, summoner["region"]))
-                player += ("\n\t- Masteries: " + _delegate.get_player_masteries(each))
+                player += ("\n\t- Masteries: {ferocity}-{cunning}-{resolve}".format(**Delegate.get_masteries(each["masteries"])))
                 player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
 
                 if each["teamId"] == 100:
@@ -560,7 +560,33 @@ class LeagueOfLegends(object):
             if idx <= len(rune_page_data):
                 runes_summary += "\n"
 
-        await BOT.send_message(channel, "```py\n{}```\n".format(runes_summary))
+        await BOT.send_message(channel, "```py\n{}\n```".format(runes_summary))
+
+    async def cmd_masteries(self, sender, channel, params):
+        summoner = _delegate.get_summoner_info(sender, params)
+        await BOT.send_typing(channel)
+
+        try:
+            mastery_pages = api.get_mastery_pages([summoner["id"], ], region=summoner["region"])
+        except riotwatcher.LoLException:
+            raise SlashBotValueError("Error getting mastery pages for this summoner")
+
+        masteries_summary = "Summoner level: {}\n".format(summoner["level"])
+        idx = 1
+        for page in mastery_pages[summoner["id"]]["pages"]:
+            try:
+                masteries_summary += "• {page}: {ferocity}-{cunning}-{resolve}".format(
+                    page=page["name"],
+                    **Delegate.get_masteries(page["masteries"]),
+                )
+            except KeyError:
+                masteries_summary += "• {page}: 0-0-0".format(page=page["name"])
+
+            idx += 1
+            if idx <= len(mastery_pages[summoner["id"]]["pages"]):
+                masteries_summary += "\n"
+
+        await BOT.send_message(channel, "```py\n{}\n```".format(masteries_summary))
 
 
 # TODO: Get rid of Delegate class and make its functions module level
@@ -604,6 +630,7 @@ class Delegate(object):
                         "name": riotuser.summoner_name,
                         "id": riotuser.summoner_id,
                         "region": riotuser.region,
+                        "level": riotuser.summoner_level,
                         "last_updated": riotuser.last_updated,
                         "last_update_data": riotuser.last_update_data,
                     }
@@ -622,6 +649,7 @@ class Delegate(object):
                         "name": riotuser.summoner_name,
                         "id": riotuser.summoner_id,
                         "region": riotuser.region,
+                        "level": riotuser.summoner_level,
                         "last_updated": riotuser.last_updated,
                         "last_update_data": riotuser.last_update_data,
                     }
@@ -640,6 +668,7 @@ class Delegate(object):
                 "name": name,
                 "id": None,
                 "region": region,
+                "level": None,
                 "last_updated": None,
                 "last_update_data": None,
             }
@@ -655,8 +684,13 @@ class Delegate(object):
                     raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
 
             summoner["id"] = str(rito_resp["id"])
+            summoner["level"] = int(rito_resp["summonerLevel"])
 
-            r = RiotUser.update(summoner_id=rito_resp["id"]).where(
+            r = RiotUser.update(
+                summoner_id=rito_resp["id"],
+                summoner_level=rito_resp["summonerLevel"]
+            ).where(
+
                 (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
             ).execute()
 
@@ -739,33 +773,33 @@ class Delegate(object):
 
         return stats
 
-    def get_player_masteries(self, player):
-        if player is None:
-            return ""
+    @staticmethod
+    def get_masteries(page):
+        masteries = {
+            "ferocity": 0,
+            "cunning": 0,
+            "resolve": 0,
+        }
+        id_key = "id"
+        try:
+            if page[0][id_key]:
+                pass
+        except KeyError:
+            id_key = "masteryId"
 
-        masteries = "{}-{}-{}"
-        ferocity_count = 0
-        cunning_count = 0
-        resolve_count = 0
-
-        for each in player["masteries"]:
-            t = self._get_mastery_tree(each["masteryId"])
+        for mastery in page:
+            t = Delegate.get_mastery_tree(mastery[id_key])
             if t == 0:
-                ferocity_count += each["rank"]
+                masteries["ferocity"] += mastery["rank"]
             elif t == 1:
-                cunning_count += each["rank"]
+                masteries["cunning"] += mastery["rank"]
             elif t == 2:
-                resolve_count += each["rank"]
+                masteries["resolve"] += mastery["rank"]
 
-        return masteries.format(ferocity_count, cunning_count, resolve_count)
+        return masteries
 
-    def get_player_mastery_page(self, player):
-        pass
-
-    def get_mastery_stats(self, masteries):
-        pass
-
-    def _get_mastery_tree(self, mastery_id):
+    @staticmethod
+    def get_mastery_tree(mastery_id):
         ferocity = []
         for each in MASTERIES["tree"]["Ferocity"]:
             ferocity.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
