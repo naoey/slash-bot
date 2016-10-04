@@ -7,7 +7,7 @@ Created on 2016-08-23
 
 VERSION = "0.0.3"
 
-BOT_PREFIX = ":"
+BOT_PREFIX = ","
 
 PATHS = {
     "logs_dir": "./../logs/",
