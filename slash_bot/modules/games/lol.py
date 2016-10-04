@@ -265,7 +265,7 @@ class LeagueOfLegends(object):
 
     async def cmd_setname(self, sender, channel, params):
         await BOT.send_typing(channel)
-        summoner, region = await _delegate.parse_username_region(params)
+        summoner, region = _delegate.parse_username_region(params)
 
         user = User.get_or_create(user_id=sender.id, defaults={
             "user_id": sender.id,
@@ -295,12 +295,12 @@ class LeagueOfLegends(object):
             await BOT.send_message(channel, Responses.english["UPDATED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 name=summoner,
-                region=REGION_NAMES["region"])
+                region=REGION_NAMES[region])
             )
         else:
             await BOT.send_message(channel, Responses.english["STORED_LOL_USERNAME"].format(
-                name=sender.mention,
-                region=REGION_NAMES["region"])
+                sender=sender.mention,
+                region=REGION_NAMES[region])
             )
 
         riotuser.save()
