@@ -8,7 +8,8 @@ Created on 2016-08-23
 import logging
 import json
 import riotwatcher
-import datetime, time
+import datetime
+import time
 import re
 
 import config
@@ -86,7 +87,7 @@ GAME_TYPES = {
 
 GAME_SUB_TYPES = {
     "NONE": "Custom game",
-    "NORMAL":  "Unranked on Summoner's Rift",
+    "NORMAL": "Unranked on Summoner's Rift",
     "NORMAL_3x3": "Unranked on Twisted Treeline",
     "ODIN_UNRANKED": "Dominion on Crystal Scar",
     "ARAM_UNRANKED_5v5": "ARAM on Howling Abyss",
@@ -117,9 +118,11 @@ SUMMONER_SPELLS = None
 
 CONFIG = config.MODULES["League of Legends"]["config"]
 
+
 def riot_api_error():
     logger.error("Non 404/204 error with riot API")
     return ThirdPartyAPIError("Error communicating with the Riot Games API")
+
 
 class LeagueOfLegends(object):
     def __init__(self):
@@ -179,10 +182,10 @@ class LeagueOfLegends(object):
             timestamp = datetime.datetime.now()
 
             static_data = [
-                {"key":"CHAMPIONS", "value":json.dumps(CHAMPIONS), "updated":timestamp},
-                {"key":"MASTERIES", "value":json.dumps(MASTERIES), "updated":timestamp},
-                {"key":"RUNES", "value":json.dumps(RUNES), "updated":timestamp},
-                {"key":"SUMMONER_SPELLS", "value":json.dumps(SUMMONER_SPELLS), "updated":timestamp},
+                {"key": "CHAMPIONS", "value": json.dumps(CHAMPIONS), "updated": timestamp},
+                {"key": "MASTERIES", "value": json.dumps(MASTERIES), "updated": timestamp},
+                {"key": "RUNES", "value": json.dumps(RUNES), "updated": timestamp},
+                {"key": "SUMMONER_SPELLS", "value": json.dumps(SUMMONER_SPELLS), "updated": timestamp},
             ]
 
             RiotStaticData.insert_many(static_data).execute()
@@ -236,7 +239,9 @@ class LeagueOfLegends(object):
         await BOT.send_typing(channel)
         local_summoner = _delegate.get_summoner_info(sender, params)
 
-        if local_summoner["last_updated"] is not None and (datetime.datetime.now()-local_summoner["last_updated"]).total_seconds()/60 < 5:
+        if local_summoner["last_updated"] is not None and (
+            datetime.datetime.now() - local_summoner["last_updated"]
+        ).total_seconds() / 60 < 5:
             return await BOT.send_message(channel, json.loads(local_summoner["last_update_data"]))
 
         summoner = api.get_summoner(_id=local_summoner["id"], region=local_summoner["region"])
@@ -245,7 +250,7 @@ class LeagueOfLegends(object):
             stats = api.get_stat_summary(local_summoner["id"], region=local_summoner["region"])
 
             unranked_stats = [stat_summary for stat_summary in stats["playerStatSummaries"]
-                                if stat_summary["playerStatSummaryType"] == "Unranked"][0]
+                              if stat_summary["playerStatSummaryType"] == "Unranked"][0]
 
         except riotwatcher.LoLException as e:
             if e == riotwatcher.error_404:
@@ -291,10 +296,10 @@ class LeagueOfLegends(object):
 
         most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
         general_info = Responses.english["PLAYER_SUMMARY_GENERAL"].format(
-            name = summoner["name"],
-            level = summoner["summonerLevel"],
-            region = REGION_NAMES[local_summoner["region"]],
-            recent = {
+            name=summoner["name"],
+            level=summoner["summonerLevel"],
+            region=REGION_NAMES[local_summoner["region"]],
+            recent={
                 "name": CHAMPIONS["data"][str(most_played["id"])]["name"],
                 "plays": most_played["plays"],
                 "wins": most_played["wins"],
@@ -304,7 +309,7 @@ class LeagueOfLegends(object):
                     most_played["assists"],
                 ),
             },
-            normal_wins = unranked_stats["wins"],
+            normal_wins=unranked_stats["wins"],
         )
 
         try:
@@ -321,24 +326,26 @@ class LeagueOfLegends(object):
                 riot_api_error()
 
         mastery_info = Responses.english["PLAYER_SUMMARY_MASTERY"].format(
-            total_mastery = score if score else 0,
-            champion = CHAMPIONS["data"][str(top_champion["championId"])]["name"] if top_champion else None,
-            level = top_champion["championLevel"] if top_champion else 0,
-            last_play = datetime.datetime.fromtimestamp(
-                int(top_champion["lastPlayTime"])/1000
+            total_mastery=score if score else 0,
+            champion=CHAMPIONS["data"][str(top_champion["championId"])]["name"] if top_champion else None,
+            level=top_champion["championLevel"] if top_champion else 0,
+            last_play=datetime.datetime.fromtimestamp(
+                int(top_champion["lastPlayTime"]) / 1000
             ).strftime("%d-%m-%Y %I:%M %p") if top_champion else "-",
-            score = top_champion["championPoints"] if top_champion else 0,
+            score=top_champion["championPoints"] if top_champion else 0,
         )
 
         try:
             ranked_stats = api.get_ranked_stats(local_summoner["id"], region=local_summoner["region"])
-            favourite_champion = max([x for x in ranked_stats["champions"] if x["id"] != 0], key=lambda d: d["stats"]["totalSessionsPlayed"])
-            league = api.get_league(summoner_ids=[local_summoner["id"],], region=local_summoner["region"])
-            player_in_league = [x for x in league[str(local_summoner["id"])][0]["entries"] if x["playerOrTeamId"] == str(local_summoner["id"])][0]
+            favourite_champion = max([x for x in ranked_stats["champions"] if x["id"] != 0],
+                                     key=lambda d: d["stats"]["totalSessionsPlayed"])
+            league = api.get_league(summoner_ids=[local_summoner["id"], ], region=local_summoner["region"])
+            player_in_league = [x for x in league[str(local_summoner["id"])][0]["entries"] if
+                                x["playerOrTeamId"] == str(local_summoner["id"])][0]
             ranked_general = [x for x in ranked_stats["champions"] if x["id"] == 0][0]["stats"]
 
             ranked_info = Responses.english["PLAYER_SUMMARY_RANKED"].format(
-                fav = {
+                fav={
                     "name": CHAMPIONS["data"][str(favourite_champion["id"])]["name"],
                     "plays": favourite_champion["stats"]["totalSessionsPlayed"],
                     "wins": favourite_champion["stats"]["totalSessionsWon"],
@@ -348,25 +355,25 @@ class LeagueOfLegends(object):
                         favourite_champion["stats"]["totalAssists"]
                     )
                 },
-                league = league[str(local_summoner["id"])][0]["tier"].title(),
-                division = player_in_league["division"],
-                points = player_in_league["leaguePoints"],
-                wins = player_in_league["wins"],
-                losses = player_in_league["losses"],
-                kills_avg = round(ranked_general["totalChampionKills"]/ranked_general["totalSessionsPlayed"], 2),
-                deaths_avg = round(ranked_general["totalDeathsPerSession"]/ranked_general["totalSessionsPlayed"], 2),
-                assists_avg = round(ranked_general["totalAssists"]/ranked_general["totalSessionsPlayed"], 2),
-                kills = ranked_general["totalChampionKills"],
-                deaths = ranked_general["totalDeathsPerSession"],
-                assists = ranked_general["totalAssists"],
-                largest_spree = ranked_general["maxLargestKillingSpree"],
-                double = ranked_general["totalDoubleKills"],
-                triple = ranked_general["totalTripleKills"],
-                quadra = ranked_general["totalQuadraKills"],
-                penta = ranked_general["totalPentaKills"],
-                cs = ranked_general["totalMinionKills"],
-                gold = ranked_general["totalGoldEarned"],
-                towers = ranked_general["totalTurretsKilled"],
+                league=league[str(local_summoner["id"])][0]["tier"].title(),
+                division=player_in_league["division"],
+                points=player_in_league["leaguePoints"],
+                wins=player_in_league["wins"],
+                losses=player_in_league["losses"],
+                kills_avg=round(ranked_general["totalChampionKills"] / ranked_general["totalSessionsPlayed"], 2),
+                deaths_avg=round(ranked_general["totalDeathsPerSession"] / ranked_general["totalSessionsPlayed"], 2),
+                assists_avg=round(ranked_general["totalAssists"] / ranked_general["totalSessionsPlayed"], 2),
+                kills=ranked_general["totalChampionKills"],
+                deaths=ranked_general["totalDeathsPerSession"],
+                assists=ranked_general["totalAssists"],
+                largest_spree=ranked_general["maxLargestKillingSpree"],
+                double=ranked_general["totalDoubleKills"],
+                triple=ranked_general["totalTripleKills"],
+                quadra=ranked_general["totalQuadraKills"],
+                penta=ranked_general["totalPentaKills"],
+                cs=ranked_general["totalMinionKills"],
+                gold=ranked_general["totalGoldEarned"],
+                towers=ranked_general["totalTurretsKilled"],
             )
         except riotwatcher.LoLException as e:
             if e == riotwatcher.error_404:
@@ -381,8 +388,8 @@ class LeagueOfLegends(object):
         )
 
         r = RiotUser.update(last_update_data=json.dumps(summary), last_updated=datetime.datetime.now()).where(
-                (RiotUser.summoner_id == local_summoner["id"]) & (RiotUser.region == local_summoner["region"])
-            ).execute()
+            (RiotUser.summoner_id == local_summoner["id"]) & (RiotUser.region == local_summoner["region"])
+        ).execute()
 
         if r < 1:
             logger.error("There was an error updating player info for summoner {} {}".format(
@@ -428,15 +435,15 @@ class LeagueOfLegends(object):
 
             summary = "```py\n{}\n```".format(
                 Responses.english["LIVE_GAME"].format(
-                    mode = game["gameMode"].title(),
-                    duration = time.strftime("%M:%S", time.gmtime(game["gameLength"])),
-                    start_time = datetime.datetime.fromtimestamp(
-                    int(game["gameStartTime"])/1000
+                    mode=game["gameMode"].title(),
+                    duration=time.strftime("%M:%S", time.gmtime(game["gameLength"])),
+                    start_time=datetime.datetime.fromtimestamp(
+                        int(game["gameStartTime"]) / 1000
                     ).strftime("%I:%M %p"),
-                    red_team_bans = ", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None,
-                    blue_team_bans = ", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None,
-                    red_team = "\n".join(red_team).strip(),
-                    blue_team = "\n".join(blue_team).strip(),
+                    red_team_bans=", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None,
+                    blue_team_bans=", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None,
+                    red_team="\n".join(red_team).strip(),
+                    blue_team="\n".join(blue_team).strip(),
                 )
             )
 
@@ -450,6 +457,7 @@ class LeagueOfLegends(object):
                 )
             else:
                 riot_api_error()
+
 
 class Delegate(object):
     @staticmethod
@@ -544,15 +552,15 @@ class Delegate(object):
             summoner["id"] = rito_resp["id"]
 
             r = RiotUser.update(summoner_id=rito_resp["id"]).where(
-                    (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
-                ).execute()
+                (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
+            ).execute()
 
             if r < 1:
                 logger.debug(
                     ("Local player info/summoner id wasn't updated for summoner {} on {}."
-                    "Either this user isn't stored locally or there was an error updating.").format(
-                        summoner["name"],
-                        summoner["region"]
+                        "Either this user isn't stored locally or there was an error updating.").format(
+                            summoner["name"],
+                            summoner["region"]
                     )
                 )
 
@@ -566,8 +574,8 @@ class Delegate(object):
             try:
                 if not name.endswith(terminus):
                     while not params[0].endswith(terminus):
-                        name += " "+params.pop(0)
-                    name += " "+params.pop(0)
+                        name += " " + params.pop(0)
+                    name += " " + params.pop(0)
 
                 region = REGIONS[params.pop(0).upper()]
                 name = name[1:-1]
@@ -597,8 +605,8 @@ class Delegate(object):
         runes = ""
         for each in player["runes"]:
             runes += "\n\t\t♦ {count} x {rune}".format(
-                count = each["count"],
-                rune = RUNES["data"][str(each["runeId"])]["name"],
+                count=each["count"],
+                rune=RUNES["data"][str(each["runeId"])]["name"],
             )
 
         return runes
@@ -665,22 +673,23 @@ class Delegate(object):
             mastery["championPoints"]
         )
 
+
 class Responses:
     english = {
-        "UPDATED_LOL_USERNAME" : "{sender}\nUpdated your LoL username to {name} on region {region} 👍",
-        "STORED_LOL_USERNAME" : "{sender}\nStored your LoL name on {region} 👍",
-        "PLAYER_SUMMARY_GENERAL" : (
+        "UPDATED_LOL_USERNAME": "{sender}\nUpdated your LoL username to {name} on region {region} 👍",
+        "STORED_LOL_USERNAME": "{sender}\nStored your LoL name on {region} 👍",
+        "PLAYER_SUMMARY_GENERAL": (
             "Summoner name: {name}\n"
             "Summoner level: {level}\n"
             "Region: {region}\n"
             "Recently played: {recent[name]} ({recent[plays]} plays, {recent[wins]} win(s), {recent[kda]} KDA)\n"
             "Normal games won: {normal_wins}"
         ),
-        "PLAYER_SUMMARY_MASTERY" : (
+        "PLAYER_SUMMARY_MASTERY": (
             "Total champion mastery: {total_mastery}\n"
             "Highest champion mastery: {champion} (Level {level}, {score} score, last played {last_play})"
         ),
-        "PLAYER_SUMMARY_RANKED" : (
+        "PLAYER_SUMMARY_RANKED": (
             "League: {league} {division}, {points} points\n"
             "Games this season: {wins} win(s), {losses} losses\n"
             "Favourite champion: {fav[name]} ({fav[plays]} plays, {fav[wins]} win(s), {fav[kda]} K/D/A)\n"
@@ -692,9 +701,9 @@ class Responses:
             "Creep score: {cs}\n"
             "Gold earned: {gold}\n"
             "Towers destroyed: {towers}"
-            #"MMR: {mmr}"
+            # "MMR: {mmr}"
         ),
-        "LIVE_GAME" : (
+        "LIVE_GAME": (
             "Game type: {mode}\n"
             "Game duration: {duration}\n"
             "Game start time: {start_time}\n"
@@ -709,5 +718,5 @@ class Responses:
             "Bans: {blue_team_bans}\n"
             "{blue_team}"
         ),
-        "NOT_IN_GAME" : "Summoner {name} is not in game on {region}"
+        "NOT_IN_GAME": "Summoner {name} is not in game on {region}"
     }
