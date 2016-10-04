@@ -12,6 +12,8 @@ import datetime
 import time
 import re
 
+from collections import Counter
+
 import config
 
 from errors import *
@@ -108,6 +110,74 @@ GAME_SUB_TYPES = {
     "KING_PORO": "King Poro",
     "COUNTER_PICK": "Nemesis Draft",
     "BILGEWATER": "Black Market Brawlers",
+}
+
+STAT_ATTRIBUTES = {
+    "FlatSpellBlockMod": "Magic resist",
+    "PercentMPRegenMod": "Mana regen %",
+    "rFlatSpellBlockModPerLevel": "Magic resist per level",
+    "rFlatArmorModPerLevel": "Armor per level",
+    "PercentPhysicalDamageMod": "Phsyical damage %",
+    "FlatCritChanceMod": "Critical strike chance",
+    "PercentSpellBlockMod": "Magic resist %",
+    "rFlatTimeDeadModPerLevel": "Reduce death time per level",
+    "rFlatMagicDamageModPerLevel": "Ability power per level",
+    "rFlatHPModPerLevel": "HP per level",
+    "rPercentMovementSpeedModPerLevel": "Movement speed per level",
+    "FlatEXPBonus": "XP bonus",
+    "FlatMPRegenMod": "Mana regen",
+    "rFlatHPRegenModPerLevel": "HP regen per level",
+    "FlatBlockMod": "Reduce damage",
+    "PercentEXPBonus": "XP bonus %",
+    "FlatEnergyPoolMod": "Energy",
+    "rFlatEnergyRegenModPerLevel": "Energy regen per level",
+    "rFlatGoldPer10Mod": "Gold per 10",
+    "FlatAttackSpeedMod": "Attack speed",
+    "FlatHPPoolMod": "HP",
+    "PercentAttackSpeedMod": "Attack speed %",
+    "rFlatDodgeMod": "Dodge chance",
+    "rFlatMPRegenModPerLevel": "Mana regen per level",
+    "rPercentTimeDeadMod": "Reduce death timer %",
+    "FlatEnergyRegenMod": "Energy regen",
+    "PercentSpellVampMod": "Spell vamp %",
+    "FlatCritDamageMod": "Critical damage",
+    "rFlatMovementSpeedModPerLevel": "Movement speed per level",
+    "PercentHPRegenMod": "HP regen %",
+    "rPercentArmorPenetrationModPerLevel": "Armor penetration per level",
+    "PercentArmorMod": "Armor %",
+    "rFlatMPModPerLevel": "Mana per level",
+    "rFlatArmorPenetrationMod": "Armor penetration",
+    "PercentBlockMod": "Reduce damage %",
+    "PercentMagicDamageMod": "Ability power %",
+    "FlatMPPoolMod": "Mana",
+    "FlatPhysicalDamageMod": "Physical damage",
+    "rFlatPhysicalDamageModPerLevel": "Phsyical damage per level",
+    "rFlatTimeDeadMod": "Reduce death time",
+    "FlatHPRegenMod": "HP regen",
+    "rFlatCritDamageModPerLevel": "Critical damage per level",
+    "rFlatCritChanceModPerLevel": "Critical chance per level",
+    "rFlatDodgeModPerLevel": "Dodge chance per level",
+    "rPercentMagicPenetrationModPerLevel": "Magic penetration per level",
+    "PercentLifeStealMod": "Life steal %",
+    "PercentMovementSpeedMod": "Movement speed %",
+    "FlatArmorMod": "Armor",
+    "rFlatEnergyModPerLevel": "Energy per level",
+    "rPercentMagicPenetrationMod": "Magic penetration",
+    "rPercentTimeDeadModPerLevel": "Reduce death time per level %",
+    "PercentMPPoolMod": "Mana %",
+    "PercentDodgeMod": "Dodge chance %",
+    "PercentCritChanceMod": "Critical strike chance %",
+    "PercentCritDamageMod": "Critical strike damage %",
+    "rPercentAttackSpeedModPerLevel": "Attack speed per level %",
+    "rFlatMagicPenetrationMod": "Magic penetration",
+    "PercentHPPoolMod": "HP",
+    "rPercentArmorPenetrationMod": "Armor penetration %",
+    "rFlatMagicPenetrationModPerLevel": "Magic penetration per level",
+    "rFlatArmorPenetrationModPerLevel": "Armor penetration per level",
+    "rPercentCooldownModPerLevel": "Cooldown reduction per level",
+    "FlatMagicDamageMod": "Magic damage",
+    "FlatMovementSpeedMod": "Movement speed",
+    "rPercentCooldownMod": "Cooldown reduction %",
 }
 
 # Static data
@@ -458,7 +528,42 @@ class LeagueOfLegends(object):
             else:
                 riot_api_error()
 
+    async def cmd_runes(self, sender, channel, params):
+        summoner = _delegate.get_summoner_info(sender, params)
+        await BOT.send_typing(channel)
 
+        try:
+            rune_pages = api.get_rune_pages([summoner["id"], ], region=summoner["region"])
+        except riotwatcher.LoLException:
+            raise SlashBotValueError("Error getting rune pages for this summoner")
+
+        rune_page_data = {}
+        for page in rune_pages[summoner["id"]]["pages"]:
+            rune_page_data[page["name"]] = {
+                "page": Delegate.get_player_rune_page(page),
+                "stats": Delegate.get_rune_page_stats(page),
+            }
+
+        runes_summary = ""
+        idx = 1
+        for name, page in rune_page_data.items():
+            runes_summary += "• {}".format(name)
+
+            for rune in page["page"]:
+                runes_summary += "\n\t♦ {} x {}".format(rune["count"], rune["name"])
+
+            runes_summary += "\n\n\tStats:"
+            for name, value in page["stats"].items():
+                runes_summary += "\n\t♦ {}: {}".format(name, value)
+
+            idx += 1
+            if idx <= len(rune_page_data):
+                runes_summary += "\n"
+
+        await BOT.send_message(channel, "```py\n{}```\n".format(runes_summary))
+
+
+# TODO: Get rid of Delegate class and make its functions module level
 class Delegate(object):
     @staticmethod
     def refresh_static_data(key="ALL"):
@@ -611,6 +716,29 @@ class Delegate(object):
 
         return runes
 
+    @staticmethod
+    def get_player_rune_page(page):
+        runes = []
+        runes_raw = Counter([x["runeId"] for x in page["slots"]])
+        for each in runes_raw:
+            runes.append({
+                "name": RUNES["data"][str(each)]["name"],
+                "count": runes_raw[each],
+            })
+
+        return runes
+
+    @staticmethod
+    def get_rune_page_stats(page):
+        stats = {}
+        runes_raw = Counter([x["runeId"] for x in page["slots"]])
+        for rune, count in runes_raw.items():
+            rune = RUNES["data"][str(rune)]
+            for key, value in rune["stats"].items():
+                stats[STAT_ATTRIBUTES[key]] = round(value * count, 2)
+
+        return stats
+
     def get_player_masteries(self, player):
         if player is None:
             return ""
@@ -630,6 +758,12 @@ class Delegate(object):
                 resolve_count += each["rank"]
 
         return masteries.format(ferocity_count, cunning_count, resolve_count)
+
+    def get_player_mastery_page(self, player):
+        pass
+
+    def get_mastery_stats(self, masteries):
+        pass
 
     def _get_mastery_tree(self, mastery_id):
         ferocity = []
@@ -653,6 +787,7 @@ class Delegate(object):
         else:
             return -1
 
+    # TODO: Delegate should only return data not strings
     def get_player_champion(self, player, region):
         if not player:
             return ""
