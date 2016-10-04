@@ -48,6 +48,7 @@ Module prefix: `lol`
 |------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|
 | `summoner` | `@<discord_user>` or `<summoner_name> <region>` | General summoner information, including champion masteries and ranked stats for current season |   
 | `game`     | `@<discord_user>` or `<summoner_name> <region>`  | Shows current game info for summoner                                                          |
+| `runes`     | `@<discord_user>` or `<summoner_name> <region>`  | Show all runes pages and stats for summoner                                                  |
 
 *Note that all region values must be abbreviated as per Riot's speicification (NA, EUW, EUNE etc.)*
 
