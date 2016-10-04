@@ -604,6 +604,7 @@ class Delegate(object):
                         "name": riotuser.summoner_name,
                         "id": riotuser.summoner_id,
                         "region": riotuser.region,
+                        "level": riotuser.summoner_level,
                         "last_updated": riotuser.last_updated,
                         "last_update_data": riotuser.last_update_data,
                     }
@@ -622,6 +623,7 @@ class Delegate(object):
                         "name": riotuser.summoner_name,
                         "id": riotuser.summoner_id,
                         "region": riotuser.region,
+                        "level": riotuser.summoner_level,
                         "last_updated": riotuser.last_updated,
                         "last_update_data": riotuser.last_update_data,
                     }
@@ -640,6 +642,7 @@ class Delegate(object):
                 "name": name,
                 "id": None,
                 "region": region,
+                "level": None,
                 "last_updated": None,
                 "last_update_data": None,
             }
@@ -655,8 +658,12 @@ class Delegate(object):
                     raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
 
             summoner["id"] = str(rito_resp["id"])
+            summoner["level"] = int(rito_resp["summonerLevel"])
 
-            r = RiotUser.update(summoner_id=rito_resp["id"]).where(
+            r = RiotUser.update(
+                summoner_id=rito_resp["id"],
+                summoner_level=rito_resp["summonerLevel"]
+            ).where(
                 (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
             ).execute()
 
