@@ -6,10 +6,12 @@ Created on 2016-08-23
 """
 
 import logging
-import logging.config # find out why this is necessary when logging already imported
+import logging.config  # find out why this is necessary when logging already imported
 import discord
-import time, datetime
-import os, sys
+import time
+import datetime
+import os
+import sys
 import json
 import importlib
 import threading
@@ -56,6 +58,7 @@ LOG_CONFIG = {
 
 logging.config.dictConfig(LOG_CONFIG)
 
+
 class SlashBot(discord.Client):
 
     _module_handler_prefix = "cmd_"
@@ -93,7 +96,8 @@ class SlashBot(discord.Client):
 
                     self.modules_map[module_details["prefix"]] = {
                         "module": main_class(),
-                        "subcommands": [x for x, y in main_class.__dict__.items() if (type(y) == type(lambda:0) and x.startswith("cmd_"))],
+                        "subcommands": [x for x, y in main_class.__dict__.items() if (
+                            type(y) == type(lambda:0) and x.startswith("cmd_"))],
                     }
 
                     logging.debug("Activated module '{}".format(name))
@@ -128,7 +132,6 @@ class SlashBot(discord.Client):
         if self._last_status_idx >= len(config.DISCORD_STATUS_ITER):
             self._last_status_idx = 0
 
-
     """
     Discord event listeners
     """
@@ -152,7 +155,7 @@ class SlashBot(discord.Client):
 
             params = message.content[1:].split(" ")
             command = params.pop(0)
-            subcommand = self._module_handler_prefix+params.pop(0)
+            subcommand = self._module_handler_prefix + params.pop(0)
 
             if command in self.modules_map and subcommand in self.modules_map[command]["subcommands"]:
                 config.STATS.COMMANDS_RECEIVED += 1
@@ -207,6 +210,7 @@ class Stats(object):
             serial[attr] = val
 
         return serial
+
 
 class DiscordLogHandler(logging.StreamHandler):
     def __init__(self):
