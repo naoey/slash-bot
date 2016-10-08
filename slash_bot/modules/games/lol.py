@@ -20,7 +20,6 @@ from errors import *
 from models import *
 
 BOT = config.GLOBAL["bot"]
-_delegate = None
 
 api = None
 
@@ -216,7 +215,7 @@ class LeagueOfLegends(object):
         try:
             CHAMPIONS = RiotStaticData.get(key="CHAMPIONS")
             if int((current_time - CHAMPIONS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
-                Delegate.refresh_static_data(key="CHAMPIONS")
+                refresh_static_data(key="CHAMPIONS")
                 RiotStaticData.update(value=json.dumps(CHAMPIONS)).where(key == "CHAMPIONS").execute()
             else:
                 logger.debug("Champions already exist")
@@ -224,7 +223,7 @@ class LeagueOfLegends(object):
 
             MASTERIES = RiotStaticData.get(key="MASTERIES")
             if int((current_time - MASTERIES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
-                Delegate.refresh_static_data(key="MASTERIES")
+                refresh_static_data(key="MASTERIES")
                 RiotStaticData.update(value=json.dumps(MASTERIES)).where(key == "MASTERIES").execute()
             else:
                 logger.debug("Masteries already exist")
@@ -232,7 +231,7 @@ class LeagueOfLegends(object):
 
             RUNES = RiotStaticData.get(key="RUNES")
             if int((current_time - RUNES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
-                Delegate.refresh_static_data(key="RUNES")
+                refresh_static_data(key="RUNES")
                 RiotStaticData.update(value=json.dumps(RUNES)).where(key == "RUNES").execute()
             else:
                 logger.debug("Runes already exist")
@@ -240,7 +239,7 @@ class LeagueOfLegends(object):
 
             SUMMONER_SPELLS = RiotStaticData.get(key="SUMMONER_SPELLS")
             if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
-                Delegate.refresh_static_data(key="SUMMONER_SPELLS")
+                refresh_static_data(key="SUMMONER_SPELLS")
                 RiotStaticData.update(value=json.dumps(SUMMONER_SPELLS)).where(key == "SUMMONER_SPELLS").execute()
             else:
                 logger.debug("Summoner spells already exist")
@@ -248,7 +247,7 @@ class LeagueOfLegends(object):
 
         except RiotStaticData.DoesNotExist:
             logger.debug("One or more static data keys are missing or have values older than the specified interval, refreshing all")
-            Delegate.refresh_static_data()
+            refresh_static_data()
             timestamp = datetime.datetime.now()
 
             static_data = [
@@ -260,12 +259,9 @@ class LeagueOfLegends(object):
 
             RiotStaticData.insert_many(static_data).execute()
 
-        if _delegate is None:
-            _delegate = Delegate()
-
     async def cmd_setname(self, sender, channel, params):
         await BOT.send_typing(channel)
-        summoner, region = _delegate.parse_username_region(params)
+        summoner, region = parse_username_region(params)
 
         user = User.get_or_create(user_id=sender.id, defaults={
             "user_id": sender.id,
@@ -292,13 +288,13 @@ class LeagueOfLegends(object):
 
                 setattr(riotuser, field, value)
 
-            await BOT.send_message(channel, Responses.english["UPDATED_LOL_USERNAME"].format(
+            await BOT.send_message(channel, RESPONSES["english"]["UPDATED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 name=summoner,
                 region=REGION_NAMES[region])
             )
         else:
-            await BOT.send_message(channel, Responses.english["STORED_LOL_USERNAME"].format(
+            await BOT.send_message(channel, RESPONSES["english"]["STORED_LOL_USERNAME"].format(
                 sender=sender.mention,
                 region=REGION_NAMES[region])
             )
@@ -307,7 +303,7 @@ class LeagueOfLegends(object):
 
     async def cmd_summoner(self, sender, channel, params):
         await BOT.send_typing(channel)
-        local_summoner = _delegate.get_summoner_info(sender, params)
+        local_summoner = get_summoner_info(sender, params)
 
         if local_summoner["last_updated"] is not None and (
             datetime.datetime.now() - local_summoner["last_updated"]
@@ -365,7 +361,7 @@ class LeagueOfLegends(object):
                     }
 
         most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
-        general_info = Responses.english["PLAYER_SUMMARY_GENERAL"].format(
+        general_info = RESPONSES["english"]["PLAYER_SUMMARY_GENERAL"].format(
             name=summoner["name"],
             level=summoner["summonerLevel"],
             region=REGION_NAMES[local_summoner["region"]],
@@ -395,7 +391,7 @@ class LeagueOfLegends(object):
             else:
                 riot_api_error()
 
-        mastery_info = Responses.english["PLAYER_SUMMARY_MASTERY"].format(
+        mastery_info = RESPONSES["english"]["PLAYER_SUMMARY_MASTERY"].format(
             total_mastery=score if score else 0,
             champion=CHAMPIONS["data"][str(top_champion["championId"])]["name"] if top_champion else None,
             level=top_champion["championLevel"] if top_champion else 0,
@@ -414,7 +410,7 @@ class LeagueOfLegends(object):
                                 x["playerOrTeamId"] == str(local_summoner["id"])][0]
             ranked_general = [x for x in ranked_stats["champions"] if x["id"] == 0][0]["stats"]
 
-            ranked_info = Responses.english["PLAYER_SUMMARY_RANKED"].format(
+            ranked_info = RESPONSES["english"]["PLAYER_SUMMARY_RANKED"].format(
                 fav={
                     "name": CHAMPIONS["data"][str(favourite_champion["id"])]["name"],
                     "plays": favourite_champion["stats"]["totalSessionsPlayed"],
@@ -470,7 +466,7 @@ class LeagueOfLegends(object):
         await BOT.send_message(channel, summary)
 
     async def cmd_game(self, sender, channel, params):
-        summoner = _delegate.get_summoner_info(sender, params)
+        summoner = get_summoner_info(sender, params)
         await BOT.send_typing(channel)
 
         try:
@@ -494,9 +490,9 @@ class LeagueOfLegends(object):
 
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
-                player += ("\n\t- Champion mastery: " + _delegate.get_player_champion(each, summoner["region"]))
-                player += ("\n\t- Masteries: {ferocity}-{cunning}-{resolve}".format(**Delegate.get_masteries(each["masteries"])))
-                player += ("\n\t- Runes: " + _delegate.get_player_runes(each))
+                player += ("\n\t- Champion mastery: " + get_player_champion(each, summoner["region"]))
+                player += ("\n\t- Masteries: {ferocity}-{cunning}-{resolve}".format(**get_masteries(each["masteries"])))
+                player += ("\n\t- Runes: " + get_player_runes(each))
 
                 if each["teamId"] == 100:
                     blue_team.append(player)
@@ -504,7 +500,7 @@ class LeagueOfLegends(object):
                     red_team.append(player)
 
             summary = "```py\n{}\n```".format(
-                Responses.english["LIVE_GAME"].format(
+                RESPONSES["english"]["LIVE_GAME"].format(
                     mode=game["gameMode"].title(),
                     duration=time.strftime("%M:%S", time.gmtime(game["gameLength"])),
                     start_time=datetime.datetime.fromtimestamp(
@@ -521,7 +517,7 @@ class LeagueOfLegends(object):
 
         except riotwatcher.LoLException as e:
             if e == riotwatcher.error_404:
-                await BOT.send_message(channel, Responses.english["NOT_IN_GAME"].format(
+                await BOT.send_message(channel, RESPONSES["english"]["NOT_IN_GAME"].format(
                     name=summoner["name"],
                     region=REGION_NAMES[summoner["region"]])
                 )
@@ -529,7 +525,7 @@ class LeagueOfLegends(object):
                 riot_api_error()
 
     async def cmd_runes(self, sender, channel, params):
-        summoner = _delegate.get_summoner_info(sender, params)
+        summoner = get_summoner_info(sender, params)
         await BOT.send_typing(channel)
 
         try:
@@ -540,8 +536,8 @@ class LeagueOfLegends(object):
         rune_page_data = {}
         for page in rune_pages[summoner["id"]]["pages"]:
             rune_page_data[page["name"]] = {
-                "page": Delegate.get_player_rune_page(page),
-                "stats": Delegate.get_rune_page_stats(page),
+                "page": get_player_rune_page(page),
+                "stats": get_rune_page_stats(page),
             }
 
         runes_summary = ""
@@ -563,7 +559,7 @@ class LeagueOfLegends(object):
         await BOT.send_message(channel, "```py\n{}\n```".format(runes_summary))
 
     async def cmd_masteries(self, sender, channel, params):
-        summoner = _delegate.get_summoner_info(sender, params)
+        summoner = get_summoner_info(sender, params)
         await BOT.send_typing(channel)
 
         try:
@@ -577,7 +573,7 @@ class LeagueOfLegends(object):
             try:
                 masteries_summary += "• {page}: {ferocity}-{cunning}-{resolve}".format(
                     page=page["name"],
-                    **Delegate.get_masteries(page["masteries"]),
+                    **get_masteries(page["masteries"]),
                 )
             except KeyError:
                 masteries_summary += "• {page}: 0-0-0".format(page=page["name"])
@@ -589,262 +585,283 @@ class LeagueOfLegends(object):
         await BOT.send_message(channel, "```py\n{}\n```".format(masteries_summary))
 
 
-# TODO: Get rid of Delegate class and make its functions module level
-class Delegate(object):
-    @staticmethod
-    def refresh_static_data(key="ALL"):
-        global CHAMPIONS
-        global MASTERIES
-        global RUNES
-        global SUMMONER_SPELLS
+def refresh_static_data(key="ALL"):
+    """Refreshes all static LoL data
 
-        if CHAMPIONS is None or key in ["CHAMPIONS", "ALL"]:
-            CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
-            logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
+    Retrieves static data for champions, masteries, runes and summoner spells and assigns them to their
+    respective global variables if they haven't been initialised yet or `key` includes them.
 
-        if MASTERIES is None or key in ["MASTERIES", "ALL"]:
-            MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
-            logger.debug("Collected {} masteries".format(len(MASTERIES["data"])))
+    Args:
+        key (str): Valid values are the names of any of the static variables or "ALL"
 
-        if RUNES is None or key in ["RUNES", "ALL"]:
-            RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
-            logger.debug("Collected {} runes".format(len(RUNES["data"])))
+    """
+    if CHAMPIONS is None or key in ["CHAMPIONS", "ALL"]:
+        CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
+        logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
 
-        if SUMMONER_SPELLS is None or key in ["SUMMONER_SPELLS", "ALL"]:
-            SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
-            logger.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
-        #
-        # for id_, data in CHAMPIONS["data"].items():
-        #     try:
-        #         AssetStore.get("lol/icons/champions/{}".format(id_))
-        #     except AssetsError:
-        #         AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
+    if MASTERIES is None or key in ["MASTERIES", "ALL"]:
+        MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
+        logger.debug("Collected {} masteries".format(len(MASTERIES["data"])))
 
-    def get_summoner_info(self, discord_user, params):
-        if len(params) <= 1:
-            if len(params) == 0:
-                uid = discord_user.id
-                try:
-                    riotuser = RiotUser.get(user=uid)
-                    summoner = {
-                        "name": riotuser.summoner_name,
-                        "id": riotuser.summoner_id,
-                        "region": riotuser.region,
-                        "level": riotuser.summoner_level,
-                        "last_updated": riotuser.last_updated,
-                        "last_update_data": riotuser.last_update_data,
-                    }
-                except RiotUser.DoesNotExist:
-                    raise SlashBotValueError(
-                        "{} no summoner names have been stored for this user."
-                        " They must `,lol setname` first.".format(discord_user.mention)
-                    )
+    if RUNES is None or key in ["RUNES", "ALL"]:
+        RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
+        logger.debug("Collected {} runes".format(len(RUNES["data"])))
 
-            elif len(params) == 1 and params[0].startswith("<@"):
-                uid = params[0][1:-1][1:]
+    if SUMMONER_SPELLS is None or key in ["SUMMONER_SPELLS", "ALL"]:
+        SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
+        logger.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
 
-                try:
-                    riotuser = RiotUser.get(user=uid)
-                    summoner = {
-                        "name": riotuser.summoner_name,
-                        "id": riotuser.summoner_id,
-                        "region": riotuser.region,
-                        "level": riotuser.summoner_level,
-                        "last_updated": riotuser.last_updated,
-                        "last_update_data": riotuser.last_update_data,
-                    }
-                except RiotUser.DoesNotExist:
-                    raise SlashBotValueError(
-                        "{} no summoner names have been stored for this user."
-                        " They must `,lol setname` first.".format(discord_user.mention)
-                    )
 
-            else:
-                raise CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
+def refresh_champion_assets(champion_name=None):
+    """Refreshes champion icons
 
-        else:
-            name, region = self.parse_username_region(params)
-            summoner = {
-                "name": name,
-                "id": None,
-                "region": region,
-                "level": None,
-                "last_updated": None,
-                "last_update_data": None,
-            }
+    If `champion_name` is not given, the method loads any missing icons.
 
-        return self._update_summoner_info(summoner)
+    Args:
+        champion_name (str): If given, reloads icon regardless of whether it already exists
 
-    def _update_summoner_info(self, summoner):
-        if summoner["id"] is None:
+    Raises:
+        ValueError: If champion name is given and it is not a valid champion
+
+    """
+    if champion_name is not None:
+        if champion_name not in [x[name] for x in CHAMPIONS["data"]]:
+            raise ValueError("{} is not a valid champion".format(champion_name))
+        AssetStore.store(api.get_champion_icon(champion_name=champion_name))
+
+    for id_, data in CHAMPIONS["data"].items():
+        try:
+            AssetStore.get("lol/icons/champions/{}".format(id_))
+        except AssetsError:
+            AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
+
+
+def get_summoner_info(discord_user, params):
+    if len(params) <= 1:
+        if len(params) == 0:
+            uid = discord_user.id
             try:
-                rito_resp = api.get_summoner(summoner["name"], region=summoner["region"])
-            except riotwatcher.LoLException as e:
-                if e == riotwatcher.error_404:
-                    raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
-
-            summoner["id"] = str(rito_resp["id"])
-            summoner["level"] = int(rito_resp["summonerLevel"])
-
-            r = RiotUser.update(
-                summoner_id=rito_resp["id"],
-                summoner_level=rito_resp["summonerLevel"]
-            ).where(
-
-                (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
-            ).execute()
-
-            if r < 1:
-                logger.debug(
-                    ("Local player info/summoner id wasn't updated for summoner {} on {}."
-                        "Either this user isn't stored locally or there was an error updating.").format(
-                            summoner["name"],
-                            summoner["region"]
-                    )
+                riotuser = RiotUser.get(user=uid)
+                summoner = {
+                    "name": riotuser.summoner_name,
+                    "id": riotuser.summoner_id,
+                    "region": riotuser.region,
+                    "level": riotuser.summoner_level,
+                    "last_updated": riotuser.last_updated,
+                    "last_update_data": riotuser.last_update_data,
+                }
+            except RiotUser.DoesNotExist:
+                raise SlashBotValueError(
+                    "{} no summoner names have been stored for this user."
+                    " They must `,lol setname` first.".format(discord_user.mention)
                 )
 
-        return summoner
-
-    def parse_username_region(self, params):
-        if params[0].startswith("\"") or params[0].startswith("'"):
-            terminus = params[0][0]
-            name = params.pop(0)
+        elif len(params) == 1 and params[0].startswith("<@"):
+            uid = params[0][1:-1][1:]
 
             try:
-                if not name.endswith(terminus):
-                    while not params[0].endswith(terminus):
-                        name += " " + params.pop(0)
-                    name += " " + params.pop(0)
-
-                region = REGIONS[params.pop(0).upper()]
-                name = name[1:-1]
-
-            except IndexError:
-                raise CommandFormatError("Error understanding what you said. Did you miss any quotes?")
-            except KeyError:
-                raise SlashBotValueError("Unknown region")
+                riotuser = RiotUser.get(user=uid)
+                summoner = {
+                    "name": riotuser.summoner_name,
+                    "id": riotuser.summoner_id,
+                    "region": riotuser.region,
+                    "level": riotuser.summoner_level,
+                    "last_updated": riotuser.last_updated,
+                    "last_update_data": riotuser.last_update_data,
+                }
+            except RiotUser.DoesNotExist:
+                raise SlashBotValueError(
+                    "{} no summoner names have been stored for this user."
+                    " They must `,lol setname` first.".format(discord_user.mention)
+                )
 
         else:
-            try:
-                region = REGIONS[params[-1].upper()]
-            except KeyError:
-                raise SlashBotValueError("Unknown region")
-            params = params[:-1]
-            name = " ".join(params)
+            raise CommandFormatError("You didn't give me enough details. Expected `<user/summoner name> <region>`")
 
-        return (name, region)
-
-    def match_details(self, match_id, region):
-        pass
-
-    def get_player_runes(self, player):
-        if player is None:
-            return ""
-
-        runes = ""
-        for each in player["runes"]:
-            runes += "\n\t\t♦ {count} x {rune}".format(
-                count=each["count"],
-                rune=RUNES["data"][str(each["runeId"])]["name"],
-            )
-
-        return runes
-
-    @staticmethod
-    def get_player_rune_page(page):
-        runes = []
-        runes_raw = Counter([x["runeId"] for x in page["slots"]])
-        for each in runes_raw:
-            runes.append({
-                "name": RUNES["data"][str(each)]["name"],
-                "count": runes_raw[each],
-            })
-
-        return runes
-
-    @staticmethod
-    def get_rune_page_stats(page):
-        stats = {}
-        runes_raw = Counter([x["runeId"] for x in page["slots"]])
-        for rune, count in runes_raw.items():
-            rune = RUNES["data"][str(rune)]
-            for key, value in rune["stats"].items():
-                stats[STAT_ATTRIBUTES[key]] = round(value * count, 2)
-
-        return stats
-
-    @staticmethod
-    def get_masteries(page):
-        masteries = {
-            "ferocity": 0,
-            "cunning": 0,
-            "resolve": 0,
+    else:
+        name, region = parse_username_region(params)
+        summoner = {
+            "name": name,
+            "id": None,
+            "region": region,
+            "level": None,
+            "last_updated": None,
+            "last_update_data": None,
         }
-        id_key = "id"
+
+    return update_summoner_info(summoner)
+
+
+def update_summoner_info(summoner):
+    if summoner["id"] is None:
         try:
-            if page[0][id_key]:
-                pass
-        except KeyError:
-            id_key = "masteryId"
-
-        for mastery in page:
-            t = Delegate.get_mastery_tree(mastery[id_key])
-            if t == 0:
-                masteries["ferocity"] += mastery["rank"]
-            elif t == 1:
-                masteries["cunning"] += mastery["rank"]
-            elif t == 2:
-                masteries["resolve"] += mastery["rank"]
-
-        return masteries
-
-    @staticmethod
-    def get_mastery_tree(mastery_id):
-        ferocity = []
-        for each in MASTERIES["tree"]["Ferocity"]:
-            ferocity.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
-
-        cunning = []
-        for each in MASTERIES["tree"]["Cunning"]:
-            cunning.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
-
-        resolve = []
-        for each in MASTERIES["tree"]["Resolve"]:
-            resolve.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
-
-        if mastery_id in ferocity:
-            return 0
-        elif mastery_id in cunning:
-            return 1
-        elif mastery_id in resolve:
-            return 2
-        else:
-            return -1
-
-    # TODO: Delegate should only return data not strings
-    def get_player_champion(self, player, region):
-        if not player:
-            return ""
-
-        mastery = None
-        try:
-            mastery = api.get_champion_mastery(
-                summoner_id=player["summonerId"],
-                champion_id=player["championId"],
-                region=region
-            )
+            rito_resp = api.get_summoner(summoner["name"], region=summoner["region"])
         except riotwatcher.LoLException as e:
-            if e == riotwatcher.error_204:
-                return "Level 0, score 0"
+            if e == riotwatcher.error_404:
+                raise SlashBotValueError("Summoner {} not found on region {}".format(summoner["name"], summoner["region"]))
 
-        return "Level {}, score {}".format(
-            mastery["championLevel"],
-            mastery["championPoints"]
+        summoner["id"] = str(rito_resp["id"])
+        summoner["level"] = int(rito_resp["summonerLevel"])
+
+        r = RiotUser.update(
+            summoner_id=rito_resp["id"],
+            summoner_level=rito_resp["summonerLevel"]
+        ).where(
+
+            (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
+        ).execute()
+
+        if r < 1:
+            logger.debug(
+                ("Local player info/summoner id wasn't updated for summoner {} on {}."
+                    "Either this user isn't stored locally or there was an error updating.").format(
+                        summoner["name"],
+                        summoner["region"]
+                )
+            )
+
+    return summoner
+
+
+def parse_username_region(params):
+    if params[0].startswith("\"") or params[0].startswith("'"):
+        terminus = params[0][0]
+        name = params.pop(0)
+
+        try:
+            if not name.endswith(terminus):
+                while not params[0].endswith(terminus):
+                    name += " " + params.pop(0)
+                name += " " + params.pop(0)
+
+            region = REGIONS[params.pop(0).upper()]
+            name = name[1:-1]
+
+        except IndexError:
+            raise CommandFormatError("Error understanding what you said. Did you miss any quotes?")
+        except KeyError:
+            raise SlashBotValueError("Unknown region")
+
+    else:
+        try:
+            region = REGIONS[params[-1].upper()]
+        except KeyError:
+            raise SlashBotValueError("Unknown region")
+        params = params[:-1]
+        name = " ".join(params)
+
+    return (name, region)
+
+
+def get_player_runes(player):
+    if player is None:
+        return ""
+
+    runes = ""
+    for each in player["runes"]:
+        runes += "\n\t\t♦ {count} x {rune}".format(
+            count=each["count"],
+            rune=RUNES["data"][str(each["runeId"])]["name"],
         )
 
+    return runes
 
-class Responses:
-    english = {
+
+def get_player_rune_page(page):
+    runes = []
+    runes_raw = Counter([x["runeId"] for x in page["slots"]])
+    for each in runes_raw:
+        runes.append({
+            "name": RUNES["data"][str(each)]["name"],
+            "count": runes_raw[each],
+        })
+
+    return runes
+
+
+def get_rune_page_stats(page):
+    stats = {}
+    runes_raw = Counter([x["runeId"] for x in page["slots"]])
+    for rune, count in runes_raw.items():
+        rune = RUNES["data"][str(rune)]
+        for key, value in rune["stats"].items():
+            stats[STAT_ATTRIBUTES[key]] = round(value * count, 2)
+
+    return stats
+
+
+def get_masteries(page):
+    masteries = {
+        "ferocity": 0,
+        "cunning": 0,
+        "resolve": 0,
+    }
+    id_key = "id"
+    try:
+        if page[0][id_key]:
+            pass
+    except KeyError:
+        id_key = "masteryId"
+
+    for mastery in page:
+        t = get_mastery_tree(mastery[id_key])
+        if t == 0:
+            masteries["ferocity"] += mastery["rank"]
+        elif t == 1:
+            masteries["cunning"] += mastery["rank"]
+        elif t == 2:
+            masteries["resolve"] += mastery["rank"]
+
+    return masteries
+
+
+def get_mastery_tree(mastery_id):
+    ferocity = []
+    for each in MASTERIES["tree"]["Ferocity"]:
+        ferocity.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+    cunning = []
+    for each in MASTERIES["tree"]["Cunning"]:
+        cunning.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+    resolve = []
+    for each in MASTERIES["tree"]["Resolve"]:
+        resolve.extend([x["masteryId"] for x in each["masteryTreeItems"] if x is not None])
+
+    if mastery_id in ferocity:
+        return 0
+    elif mastery_id in cunning:
+        return 1
+    elif mastery_id in resolve:
+        return 2
+    else:
+        return -1
+
+
+# TODO: Delegate should only return data not strings
+def get_player_champion(self, player, region):
+    if not player:
+        return ""
+
+    mastery = None
+    try:
+        mastery = api.get_champion_mastery(
+            summoner_id=player["summonerId"],
+            champion_id=player["championId"],
+            region=region
+        )
+    except riotwatcher.LoLException as e:
+        if e == riotwatcher.error_204:
+            return "Level 0, score 0"
+
+    return "Level {}, score {}".format(
+        mastery["championLevel"],
+        mastery["championPoints"]
+    )
+
+
+RESPONSES = {
+    "english": {
         "UPDATED_LOL_USERNAME": "{sender}\nUpdated your LoL username to {name} on region {region} 👍",
         "STORED_LOL_USERNAME": "{sender}\nStored your LoL name on {region} 👍",
         "PLAYER_SUMMARY_GENERAL": (
@@ -889,3 +906,4 @@ class Responses:
         ),
         "NOT_IN_GAME": "Summoner {name} is not in game on {region}"
     }
+}
