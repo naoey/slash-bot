@@ -490,7 +490,9 @@ class LeagueOfLegends(object):
 
             for each in game["participants"]:
                 player = "• {} ({})".format(each["summonerName"], CHAMPIONS["data"][str(each["championId"])]["name"])
-                player += ("\n\t- Champion mastery: " + get_player_champion(each, summoner["region"]))
+                player += ("\n\t- Champion mastery: Level: {level}, score: {score}".format(
+                    **get_player_champion(each, summoner["region"]))
+                )
                 player += ("\n\t- Masteries: {ferocity}-{cunning}-{resolve}".format(**get_masteries(each["masteries"])))
                 player += ("\n\t- Runes: " + get_player_runes(each))
 
@@ -857,12 +859,9 @@ def get_player_champion(self, player, region):
         )
     except riotwatcher.LoLException as e:
         if e == riotwatcher.error_204:
-            return "Level 0, score 0"
+            return {"level": 0, "score": 0}
 
-    return "Level {}, score {}".format(
-        mastery["championLevel"],
-        mastery["championPoints"]
-    )
+    return {"level": mastery["championLevel"], "score": mastery["championPoints"]}
 
 
 RESPONSES = {
