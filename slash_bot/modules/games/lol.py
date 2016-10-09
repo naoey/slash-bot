@@ -586,6 +586,30 @@ class LeagueOfLegends(object):
 
         await BOT.send_message(channel, "```py\n{}\n```".format(masteries_summary))
 
+    async def cmd_freechamps(self, sender, channel, params):
+        BOT.send_typing(channel)
+        region = REGIONS["NA"]
+        if len(params) > 0:
+            region = params[0]
+            if region not in REGIONS.keys():
+                raise SlashBotValueError("{} unknown region {}".format(sender.mention, region))
+
+        free_champions = api.get_all_champions(region=REGIONS[region], free_to_play=True)["champions"]
+        free_champions = [
+            "• {name}, {title}".format(
+                name=CHAMPIONS["data"][str(x["id"])]["name"],
+                title=CHAMPIONS["data"][str(x["id"])]["title"],
+            ) for x in free_champions
+        ]
+
+        free_champions_summary = "\n".join(free_champions)
+        free_champions_summary = "Free champions for {region}:\n```py\n{champions}\n```".format(
+            region=REGION_NAMES[region.lower()],
+            champions=free_champions_summary
+        )
+
+        await BOT.send_message(channel, free_champions_summary)
+
 
 def refresh_static_data(key="ALL"):
     """Refreshes all static LoL data
