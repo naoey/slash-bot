@@ -88,6 +88,12 @@ class SlashBot(discord.Client):
     async def activate_modules(self):
         self.modules_map = {}
 
+        self.modules_map["bot"] = {
+            "module": CoreFunctions(),
+            "subcommands": [x for x, y in CoreFunctions.__dict__.items() if (
+                type(y) == type(lambda:0) and x.startswith("cmd_"))]
+        }
+
         for name, module_details in config.MODULES.items():
             if module_details["active"]:
                 try:
@@ -142,12 +148,19 @@ class SlashBot(discord.Client):
         config.STATS = Stats()
         config.STATS.SERVERS = len(self.servers)
 
-        await self.begin_status_loop()
-
         self.modules_map = {}
 
         logging.info("Activating modules")
         await self.activate_modules()
+
+        for server in self.servers:
+            for channel in server.channels:
+                if channel.type == "text":
+                    config.STATS.TEXT_CHANNELS += 1
+                elif channel.type == "voice":
+                    config.STATS.VOICE_CHANNELS += 1
+
+        # await self.begin_status_loop()
 
     async def on_message(self, message):
         if message.content.startswith(config.BOT_PREFIX):
@@ -187,12 +200,50 @@ class SlashBot(discord.Client):
         logging.info("SlashBot exiting")
 
 
+class CoreFunctions(object):
+    async def cmd_stats(self, sender, channel, params):
+        await config.GLOBAL["bot"].send_typing(channel)
+
+        uptime = (datetime.datetime.now() - config.STATS.START_TIME).total_seconds()
+        uptime_det = {}
+        uptime_det["days"] = int(uptime // 86400)
+        uptime = uptime - (uptime_det["days"] * 86400)
+        uptime_det["hours"] = int(uptime // 3600)
+        uptime = uptime - (uptime_det["hours"] * 3600)
+        uptime_det["minutes"] = int(uptime // 60)
+
+        await config.GLOBAL["bot"].send_message(channel, (
+            "```py\n"
+            "Bot version: {version}\n"
+            "Bot ID: {bot}\n"
+            "Owner ID: {owner}\n"
+            "Uptime: {uptime}\n"
+            "Commands received: {commands}\n"
+            # "Commands queue size: {commands_queue}"
+            "Modules active: {modules}\n"
+            "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
+            "Errors encountered: {errors}\n"
+            "```"
+        ).format(
+            version=config.VERSION,
+            bot=config.GLOBAL["bot"].user.id,
+            owner=config.GLOBAL["discord"]["owner_id"],
+            uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
+            commands=config.STATS.COMMANDS_RECEIVED,
+            # commands_queue=None,
+            modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
+            servers=config.STATS.SERVERS,
+            text_channels=config.STATS.TEXT_CHANNELS,
+            voice_channels=config.STATS.VOICE_CHANNELS,
+            errors=config.STATS.ERRORS,
+        ))
+
+
 class Stats(object):
     def __init__(self):
-        self.START_TIME = time.time()
+        self.START_TIME = datetime.datetime.now()
         self.PREFIXED_MESSAGES_RECEIVED = 0
         self.COMMANDS_RECEIVED = 0
-        self.COMMAND_QUEUE_SIZE = 0
         self.MODULES_ACTIVE = 0
         self.MESSAGES_SENT = 0
         self.SERVERS = 0
