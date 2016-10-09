@@ -49,6 +49,8 @@ Module prefix: `lol`
 | `summoner` | `@<discord_user>` or `<summoner_name> <region>` | General summoner information, including champion masteries and ranked stats for current season |   
 | `game`     | `@<discord_user>` or `<summoner_name> <region>`  | Shows current game info for summoner                                                          |
 | `runes`     | `@<discord_user>` or `<summoner_name> <region>`  | Show all runes pages and stats for summoner                                                  |
+| `masteries`     | `@<discord_user>` or `<summoner_name> <region>`  | Show all mastery pages for summoner                                                      |
+| `freechamps`  | Optional `<region>`  | Show the free champion rotation. If `<region>` is specified, the bot queries that region otherwise assumes NA           |
 
 *Note that all region values must be abbreviated as per Riot's speicification (NA, EUW, EUNE etc.)*
 

@@ -588,7 +588,7 @@ class LeagueOfLegends(object):
 
     async def cmd_freechamps(self, sender, channel, params):
         BOT.send_typing(channel)
-        region = REGIONS["NA"]
+        region = "NA"
         if len(params) > 0:
             region = params[0]
             if region not in REGIONS.keys():
