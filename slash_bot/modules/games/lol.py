@@ -216,7 +216,7 @@ class LeagueOfLegends(object):
             CHAMPIONS = RiotStaticData.get(key="CHAMPIONS")
             if int((current_time - CHAMPIONS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
                 refresh_static_data(key="CHAMPIONS")
-                RiotStaticData.update(value=json.dumps(CHAMPIONS)).where(key == "CHAMPIONS").execute()
+                RiotStaticData.update(value=json.dumps(CHAMPIONS)).where(RiotStaticData.key == "CHAMPIONS").execute()
             else:
                 logger.debug("Champions already exist")
                 CHAMPIONS = json.loads(CHAMPIONS.value)
@@ -224,7 +224,7 @@ class LeagueOfLegends(object):
             MASTERIES = RiotStaticData.get(key="MASTERIES")
             if int((current_time - MASTERIES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
                 refresh_static_data(key="MASTERIES")
-                RiotStaticData.update(value=json.dumps(MASTERIES)).where(key == "MASTERIES").execute()
+                RiotStaticData.update(value=json.dumps(MASTERIES)).where(RiotStaticData.key == "MASTERIES").execute()
             else:
                 logger.debug("Masteries already exist")
                 MASTERIES = json.loads(MASTERIES.value)
@@ -232,7 +232,7 @@ class LeagueOfLegends(object):
             RUNES = RiotStaticData.get(key="RUNES")
             if int((current_time - RUNES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
                 refresh_static_data(key="RUNES")
-                RiotStaticData.update(value=json.dumps(RUNES)).where(key == "RUNES").execute()
+                RiotStaticData.update(value=json.dumps(RUNES)).where(RiotStaticData.key == "RUNES").execute()
             else:
                 logger.debug("Runes already exist")
                 RUNES = json.loads(RUNES.value)
@@ -240,7 +240,7 @@ class LeagueOfLegends(object):
             SUMMONER_SPELLS = RiotStaticData.get(key="SUMMONER_SPELLS")
             if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
                 refresh_static_data(key="SUMMONER_SPELLS")
-                RiotStaticData.update(value=json.dumps(SUMMONER_SPELLS)).where(key == "SUMMONER_SPELLS").execute()
+                RiotStaticData.update(value=json.dumps(SUMMONER_SPELLS)).where(RiotStaticData.key == "SUMMONER_SPELLS").execute()
             else:
                 logger.debug("Summoner spells already exist")
                 SUMMONER_SPELLS = json.loads(SUMMONER_SPELLS.value)
@@ -595,6 +595,11 @@ def refresh_static_data(key="ALL"):
         key (str): Valid values are the names of any of the static variables or "ALL"
 
     """
+    global CHAMPIONS
+    global MASTERIES
+    global RUNES
+    global SUMMONER_SPELLS
+
     if CHAMPIONS is None or key in ["CHAMPIONS", "ALL"]:
         CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
         logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
