@@ -501,21 +501,21 @@ class LeagueOfLegends(object):
                 else:
                     red_team.append(player)
 
-            summary = "```py\n{}\n```".format(
-                RESPONSES["english"]["LIVE_GAME"].format(
-                    mode=game["gameMode"].title(),
-                    duration=time.strftime("%M:%S", time.gmtime(game["gameLength"])),
-                    start_time=datetime.datetime.fromtimestamp(
-                        int(game["gameStartTime"]) / 1000
-                    ).strftime("%I:%M %p"),
-                    red_team_bans=", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None,
-                    blue_team_bans=", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None,
-                    red_team="\n".join(red_team).strip(),
-                    blue_team="\n".join(blue_team).strip(),
-                )
+            summary = RESPONSES["english"]["LIVE_GAME"].format(
+                mode=game["gameMode"].title(),
+                duration=time.strftime("%M:%S", time.gmtime(game["gameLength"])),
+                start_time=datetime.datetime.fromtimestamp(
+                    int(game["gameStartTime"]) / 1000
+                ).strftime("%I:%M %p"),
+                red_team_bans=", ".join(red_team_bans).strip() if len(red_team_bans) > 0 else None,
+                blue_team_bans=", ".join(blue_team_bans).strip() if len(blue_team_bans) > 0 else None,
+                red_team="\n".join(red_team).strip(),
+                blue_team="\n".join(blue_team).strip(),
             )
 
-            await BOT.send_message(channel, summary)
+            summary = summary.split("#$$#")
+            for each in summary:
+                await BOT.send_message(channel, "```py\n{}\n```".format(each))
 
         except riotwatcher.LoLException as e:
             if e == riotwatcher.error_404:
@@ -828,6 +828,7 @@ def get_masteries(page):
         "resolve": 0,
     }
     id_key = "id"
+    # Masteries enpoint uses "id" & currentgame uses "masteryId"
     try:
         if page[0][id_key]:
             pass
@@ -869,8 +870,7 @@ def get_mastery_tree(mastery_id):
         return -1
 
 
-# TODO: Delegate should only return data not strings
-def get_player_champion(self, player, region):
+def get_player_champion(player, region):
     if not player:
         return ""
 
@@ -884,6 +884,8 @@ def get_player_champion(self, player, region):
     except riotwatcher.LoLException as e:
         if e == riotwatcher.error_204:
             return {"level": 0, "score": 0}
+        if e == riotwatcher.error_429:
+            return get_player_champion(player, region)
 
     return {"level": mastery["championLevel"], "score": mastery["championPoints"]}
 
@@ -921,11 +923,13 @@ RESPONSES = {
             "Game type: {mode}\n"
             "Game duration: {duration}\n"
             "Game start time: {start_time}\n"
+            "#$$#"
             "--------------\n"
             "RED TEAM\n"
             "--------------\n"
             "Bans: {red_team_bans}\n"
             '{red_team}\n'
+            "#$$#"
             "--------------\n"
             "BLUE TEAM\n"
             "--------------\n"
