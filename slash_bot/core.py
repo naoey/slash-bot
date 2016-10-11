@@ -157,8 +157,6 @@ class SlashBot(discord.Client):
                 elif channel.type == discord.ChannelType.voice:
                     config.STATS.VOICE_CHANNELS += 1
 
-                self.on_channel_create(channel)
-
         self.modules_map = {}
 
         logging.info("Activating modules")
@@ -192,7 +190,6 @@ class SlashBot(discord.Client):
             "server_name": server.name,
             "owner": server.owner.id,
             "region": server.region,
-            "bot_add_date": datetime.datetime.now(),
             "currently_joined": True,
         }
 
@@ -204,9 +201,12 @@ class SlashBot(discord.Client):
                     server.name,
                 ))
                 server_instance.update(server_name=server.name, currently_joined=True).execute()
+        else:
+            # Only add bot date if it's a new server
+            server_instance.update(bot_add_date=datetime.datetime.now())
 
         for channel in server.channels:
-            self.on_channel_create(channel)
+            await self.on_channel_create(channel)
 
     async def on_server_remove(self, server):
         try:
