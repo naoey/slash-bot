@@ -18,9 +18,9 @@ import threading
 
 import config
 import errors
-import models
 import utils
 
+from models import Server, Channel
 
 LOG_CONFIG = {
     "version": 1,
@@ -145,6 +145,17 @@ class SlashBot(discord.Client):
         logging.info("Ready!")
         logging.info("Bot version {}".format(config.VERSION))
 
+        for server in self.servers:
+            await self.on_server_join(server)
+
+            for channel in server.channels:
+                if channel.type == discord.ChannelType.text:
+                    config.STATS.TEXT_CHANNELS += 1
+                elif channel.type == discord.ChannelType.voice:
+                    config.STATS.VOICE_CHANNELS += 1
+
+                self.on_channel_create(channel)
+
         config.STATS = Stats()
         config.STATS.SERVERS = len(self.servers)
 
@@ -152,13 +163,6 @@ class SlashBot(discord.Client):
 
         logging.info("Activating modules")
         await self.activate_modules()
-
-        for server in self.servers:
-            for channel in server.channels:
-                if channel.type == "text":
-                    config.STATS.TEXT_CHANNELS += 1
-                elif channel.type == "voice":
-                    config.STATS.VOICE_CHANNELS += 1
 
         # await self.begin_status_loop()
 
@@ -181,6 +185,58 @@ class SlashBot(discord.Client):
                     logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
                     logging.exception("An error occurred")
                     await self.send_error(message.channel, "An error occurred 🙈")
+
+    async def on_server_join(self, server):
+        new_server = {
+            "server_id": server.id,
+            "server_name": server.name,
+            "owner": server.owner.id,
+            "region": server.region,
+            "bot_add_date": datetime.datetime.now(),
+            "currently_joined": True,
+        }
+
+        server_instance, created = Server.get_or_create(**new_server)
+        if not created:
+            if server.name != server_instance.server_name:
+                logging.debug("Rejoined server, updating name from {} to {}".format(
+                    server_instance.server_name,
+                    server.name,
+                ))
+                server_instance.update(server_name=server.name, currently_joined=True).execute()
+
+        for channel in server.channels:
+            self.on_channel_create(channel)
+
+    async def on_server_remove(self, server):
+        try:
+            server_instance = Server.get(server_id=server.id)
+            server_instance.currently_joined = False
+            server_instance.save()
+
+        except Server.DoesNotExist:
+            logging.error("Just left a server that wasn't registered in database! Server ID {}, name {}".format(
+                server.id,
+                server.name,
+            ))
+
+    async def on_channel_create(self, channel):
+        new_channel = {
+            "channel_id": channel.id,
+            "channel_name": channel.name,
+            "channel_type": channel.type,
+            "server": channel.server.id,
+        }
+
+        channel_instance, created = Channel.get_or_create(**new_channel)
+        if not created:
+            if channel.name != channel_instance.channel_name:
+                logging.debug("Updating channel name from {} to {} on server {}".format(
+                    channel_instance.channel_name,
+                    channel.name,
+                    channel.server.name
+                ))
+                channel_instance.update(channel_name=channel.name).execute()
 
     """
     Discord event responders
