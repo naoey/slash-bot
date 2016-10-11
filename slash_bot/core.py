@@ -145,6 +145,9 @@ class SlashBot(discord.Client):
         logging.info("Ready!")
         logging.info("Bot version {}".format(config.VERSION))
 
+        config.STATS = Stats()
+        config.STATS.SERVERS = len(self.servers)
+
         for server in self.servers:
             await self.on_server_join(server)
 
@@ -155,9 +158,6 @@ class SlashBot(discord.Client):
                     config.STATS.VOICE_CHANNELS += 1
 
                 self.on_channel_create(channel)
-
-        config.STATS = Stats()
-        config.STATS.SERVERS = len(self.servers)
 
         self.modules_map = {}
 
