@@ -360,13 +360,24 @@ class LeagueOfLegends(object):
                         "deaths": 0 if "assists" not in game["stats"].keys() else game["stats"]["assists"],
                     }
 
-        most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
+        if len(champions_played) > 0:
+            most_played = champions_played[max(champions_played, key=lambda x: champions_played[x]["plays"])]
+        else:
+            most_played = {
+                "id": None,
+                "plays": "-",
+                "wins": "-",
+                "kills": "-",
+                "deaths": "-",
+                "assists": "-",
+            }
+
         general_info = RESPONSES["english"]["PLAYER_SUMMARY_GENERAL"].format(
             name=summoner["name"],
             level=summoner["summonerLevel"],
             region=REGION_NAMES[local_summoner["region"]],
             recent={
-                "name": CHAMPIONS["data"][str(most_played["id"])]["name"],
+                "name": CHAMPIONS["data"][str(most_played["id"])]["name"] if most_played["id"] is not None else "-",
                 "plays": most_played["plays"],
                 "wins": most_played["wins"],
                 "kda": "{}/{}/{}".format(
@@ -384,7 +395,11 @@ class LeagueOfLegends(object):
             if e == riotwatcher.error_204:
                 score = None
         try:
-            top_champion = api.get_top_champions(local_summoner["id"], local_summoner["region"], count=1)[0]
+            top_champion = api.get_top_champions(local_summoner["id"], local_summoner["region"], count=1)
+            if len(top_champion) > 0:
+                top_champion = top_champion[0]
+            else:
+                top_champion = None
         except riotwatcher.LoLException as e:
             if e == riotwatcher.error_404:
                 top_champion = None
@@ -394,11 +409,11 @@ class LeagueOfLegends(object):
         mastery_info = RESPONSES["english"]["PLAYER_SUMMARY_MASTERY"].format(
             total_mastery=score if score else 0,
             champion=CHAMPIONS["data"][str(top_champion["championId"])]["name"] if top_champion else None,
-            level=top_champion["championLevel"] if top_champion else 0,
+            level=top_champion["championLevel"] if top_champion else "-",
             last_play=datetime.datetime.fromtimestamp(
                 int(top_champion["lastPlayTime"]) / 1000
             ).strftime("%d-%m-%Y %I:%M %p") if top_champion else "-",
-            score=top_champion["championPoints"] if top_champion else 0,
+            score=top_champion["championPoints"] if top_champion else "-",
         )
 
         try:
