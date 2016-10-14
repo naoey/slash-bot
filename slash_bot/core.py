@@ -242,8 +242,8 @@ class SlashBot(discord.Client):
     Discord event responders
     """
     async def send_message(self, channel, message):
-        config.STATS.MESSAGES_SENT += 1
         await super().send_message(channel, message)
+        config.STATS.MESSAGES_SENT += 1
 
     async def send_error(self, channel, error):
         config.STATS.ERRORS += 1
@@ -275,6 +275,7 @@ class CoreFunctions(object):
             "Owner ID: {owner}\n"
             "Uptime: {uptime}\n"
             "Commands received: {commands}\n"
+            "Messages sent: {messages_sent}\n"
             # "Commands queue size: {commands_queue}"
             "Modules active: {modules}\n"
             "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
@@ -286,6 +287,7 @@ class CoreFunctions(object):
             owner=config.GLOBAL["discord"]["owner_id"],
             uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
             commands=config.STATS.COMMANDS_RECEIVED,
+            messages_sent=config.STATS.MESSAGES_SENT,
             # commands_queue=None,
             modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
             servers=config.STATS.SERVERS,
