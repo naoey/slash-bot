@@ -15,14 +15,36 @@ logger = logging.getLogger(__name__)
 
 
 class Command(object):
-    resposne_chunk_marker = "$##$"
+    """The base command class
+
+    Every SlashBot command must inherit from this class to be recognised as a command and added to the
+    bot's commands mapping. Override the `make_response()` method to do whatever work needs to be done to
+    generate the command's resposne. The bot will handle sending the response when it is ready to.
+
+    Use `response_chunk_marker` in the overridden `make_response()` if the response length exceeds 2000
+    characters. Discord imposes a 2000 character limit to messsages. It is better for each command to
+    chunk its response neatly than have it arbitrarily chunked by the bot.
+
+    """
+    response_chunk_marker = "$##$"
 
     command = ""
     aliases = []
     required_permissions = []
     required_roles = []
 
-    def __init__(self, message):
+    def __init__(self, message, defer_response=False):
+        """Create a new command object to process and respond to a command.
+
+        Args:
+            message (discord.Message): The Message that triggered this command
+            defer_response (bool): If True, the command will not begin working on the response immediately,
+                instead it will start its work when the response is called for. Defaults to False.
+
+        Raises:
+            PermissionError: If the user who invoked the command doesn't have the necessary permissions or roles
+
+        """
         found_role_permission = False
         if len(required_roles) > 0:
             for each in required_roles:
@@ -41,20 +63,21 @@ class Command(object):
             raise PermissionError("You don't have the necessary permission!")
 
         self._raw_message = message
+        self.response = None
+
+        if not defer_response:
+            self.make_response()
+
+    def make_response(self):
+        """Override this method to do whatever work the command needs to do and store it in `response`."""
+        raise NotImplementedError
 
     async def respond(self, callback):
-        """Do whatever work the command needs and send the response to `callback`
+        """Don't override this method. It is called by the bot to send the response when it is ready to."""
+        if self.response is None:
+            self.make_response()
 
-        Override this method in subclasses to implement a command. Use `resposne_chunk_marker` to mark points
-        in the response string on which the reponse can be split. This is needed where there is a maximum string
-        size in place (ex. Discord has a 2000 character limit). It is better if this is taken care of by the
-        command to produce neat responses than have the caller arbitrarily chunk the response.
-
-        Args:
-            callback: Call this method with the response string
-
-        """
-        raise NotImplementedError
+        await callback(response)
 
 
 class Permissions(object):
