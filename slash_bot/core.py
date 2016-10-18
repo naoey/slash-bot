@@ -150,23 +150,14 @@ class SlashBot(discord.Client):
         logging.info("Bot version {}".format(config.VERSION))
 
         config.STATS = Stats()
-        config.STATS.SERVERS = len(self.servers)
 
         for server in self.servers:
             await self.on_server_join(server)
 
-            for channel in server.channels:
-                if channel.type == discord.ChannelType.text:
-                    config.STATS.TEXT_CHANNELS += 1
-                elif channel.type == discord.ChannelType.voice:
-                    config.STATS.VOICE_CHANNELS += 1
-
         self.modules_map = {}
-
+        self.commands_map = {}
         logging.info("Activating modules")
         await self.activate_modules()
-
-        # await self.begin_status_loop()
 
     async def on_message(self, message):
         if message.content.startswith(config.BOT_PREFIX):
@@ -196,6 +187,8 @@ class SlashBot(discord.Client):
                 await self.send_error("An error occurred 🙈", message.channel)
 
     async def on_server_join(self, server):
+        config.STATS.SERVERS += 1
+
         new_server = {
             "server_id": server.id,
             "server_name": server.name,
@@ -220,6 +213,8 @@ class SlashBot(discord.Client):
             await self.on_channel_create(channel)
 
     async def on_server_remove(self, server):
+        config.STATS.SERVERS -= 1
+
         try:
             server_instance = Server.get(server_id=server.id)
             server_instance.currently_joined = False
@@ -232,6 +227,11 @@ class SlashBot(discord.Client):
             ))
 
     async def on_channel_create(self, channel):
+        if channel.type == discord.ChannelType.text:
+            config.STATS.TEXT_CHANNELS += 1
+        elif channel.type == discord.ChannelType.voice:
+            config.STATS.VOICE_CHANNELS += 1
+
         new_channel = {
             "channel_id": channel.id,
             "channel_name": channel.name,
@@ -248,6 +248,12 @@ class SlashBot(discord.Client):
                     channel.server.name
                 ))
                 channel_instance.update(channel_name=channel.name).execute()
+
+    async def on_channel_delete(self, channel):
+        if channel.type == discord.ChannelType.text:
+            config.STATS.TEXT_CHANNELS -= 1
+        elif channel.type == discord.ChannelType.voice:
+            config.STATS.VOICE_CHANNELS -= 1
 
     """
     Discord event responders
@@ -350,4 +356,4 @@ if __name__ == "__main__":
     logging.info("Initialising SlashBot")
     SlashBot().run()
 
-    models.BotStats.create(run_time=str(time.time()), stats_str=json.dumps(config.STATS.serialise()))
+    BotStats.create(run_time=str(time.time()), stats_str=json.dumps(config.STATS.serialise()))
