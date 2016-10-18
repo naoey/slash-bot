@@ -113,7 +113,7 @@ class Permissions(object):
         """Returns true if a user has a particular permission on a channel.
 
         For resolving permissions by roles, the `user` has to be a `discord.Member` object. If both `role`
-        and `permission` are given, the permission is resolved as an or operation.
+        and `permission` are given, the permission is resolved as an AND operation.
 
         Args:
             channel (discord.Channel): The channel on which the permission needs to be evaluated
@@ -131,9 +131,13 @@ class Permissions(object):
             return True
 
         if role is not None:
-            return role in user.roles
+            role_permission = role.lower() in [r.name.lower() for r in user.roles]
+        else:
+            role_permission = True
 
-        if permission == self.BOT_OWNER:
-            return user.id == config.GLOBAL["discord"]["owner_id"]
-        if permission == self.SERVER_OWNER:
-            return user.id == channel.server.owner.id
+        if permission is None:
+            return role_permission
+        if permission == Permissions.BOT_OWNER:
+            return role_permission and user.id == config.GLOBAL["discord"]["owner_id"]
+        if permission == Permissions.SERVER_OWNER:
+            return role_permission and user.id == channel.server.owner.id
