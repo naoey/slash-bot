@@ -16,6 +16,8 @@ import json
 import importlib
 import threading
 
+from functools import partial
+
 import config
 import errors
 
@@ -170,21 +172,28 @@ class SlashBot(discord.Client):
         if message.content.startswith(config.BOT_PREFIX):
             config.STATS.PREFIXED_MESSAGES_RECEIVED += 1
 
-            params = message.content[1:].split(" ")
-            command = params.pop(0)
-            subcommand = self._module_handler_prefix + params.pop(0)
+        command = message.content[1:].split(" ")[0]
 
-            if command in self.modules_map and subcommand in self.modules_map[command]["subcommands"]:
-                config.STATS.COMMANDS_RECEIVED += 1
+        if command in self.commands_map.keys():
+            config.STATS.COMMANDS_RECEIVED += 1
 
-                try:
-                    await getattr(self.modules_map[command]["module"], subcommand)(message.author, message.channel, params)
-                except errors.SlashBotError as sbe:
-                    await self.send_error(message.channel, sbe)
-                except Exception as e:
-                    logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
-                    logging.exception("An error occurred")
-                    await self.send_error(message.channel, "An error occurred 🙈")
+            await self.send_typing(message.channel)
+
+            try:
+                # await getattr(self.modules_map[command]["module"], subcommand)(message.author, message.channel, params)
+                command = self.commands_map[command](message, defer_response=True)
+                await command.make_response()
+                response_channel = partial(self.send_message, channel=message.channel)
+                self.send_message
+                await command.respond(response_channel)
+            except errors.BotPermissionError as pe:
+                await self.send_error("{} {}".format(message.author.mention, pe), message.channel)
+            except errors.SlashBotError as sbe:
+                await self.send_error(sbe, message.channel)
+            except Exception as e:
+                logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
+                logging.exception("An error occurred")
+                await self.send_error("An error occurred 🙈", message.channel)
 
     async def on_server_join(self, server):
         new_server = {
