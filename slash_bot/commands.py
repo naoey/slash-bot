@@ -99,7 +99,7 @@ class Command(object):
         if self.response is None:
             self.make_response()
 
-        await callback(response)
+        await callback(self.response)
 
 
 class Permissions(object):
