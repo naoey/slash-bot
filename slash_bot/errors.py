@@ -8,6 +8,7 @@ Created on 2016-08-23
 class SlashBotError(Exception):
     pass
 
+
 class ConfigError(SlashBotError):
     def __init__(self, config_attr=None):
         if config_attr:
@@ -15,14 +16,26 @@ class ConfigError(SlashBotError):
         else:
             super().init()
 
+
 class SlashBotValueError(SlashBotError):
     pass
+
 
 class CommandFormatError(SlashBotError):
     pass
 
+
 class ThirdPartyAPIError(SlashBotError):
     pass
 
+
 class AssetsError(SlashBotError):
+    pass
+
+
+class CommandDefinitionError(SlashBotError):
+    pass
+
+
+class BotPermissionError(SlashBotError):
     pass
