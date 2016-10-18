@@ -33,7 +33,7 @@ class Command(object):
     required_permissions = []
     required_roles = []
 
-    def __init__(self, message, defer_response=False):
+    def __init__(self, message):
         """Create a new command object to process and respond to a command.
 
         Args:
@@ -65,9 +65,6 @@ class Command(object):
 
             idx += 1
 
-        if not defer_response:
-            self.make_response()
-
     async def make_response(self):
         """Override this method to do whatever work the command needs to do and store it in `response`.
 
@@ -98,7 +95,7 @@ class Command(object):
     async def respond(self, callback):
         """Don't override this method. It is called by the bot to send the response when it is ready to."""
         if self.response is None:
-            self.make_response()
+            await self.make_response()
 
         await callback(self.response)
 

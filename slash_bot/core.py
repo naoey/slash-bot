@@ -175,8 +175,7 @@ class SlashBot(discord.Client):
             await self.send_typing(message.channel)
 
             try:
-                # await getattr(self.modules_map[command]["module"], subcommand)(message.author, message.channel, params)
-                command = self.commands_map[command](message, defer_response=True)
+                command = self.commands_map[command](message)
                 await command.make_response()
                 response_channel = partial(self.send_message, channel=message.channel)
                 self.send_message
