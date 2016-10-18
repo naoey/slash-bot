@@ -277,7 +277,6 @@ class CoreFunctions(object):
     class PublicStats(Command):
         command = "stats"
         aliases = ["st", ]
-        required_permissions = [Permissions.BOT_OWNER, ]
 
         @overrides(Command)
         async def make_response(self):
