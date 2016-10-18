@@ -41,36 +41,58 @@ class Command(object):
             defer_response (bool): If True, the command will not begin working on the response immediately,
                 instead it will start its work when the response is called for. Defaults to False.
 
+        """
+        self._raw_message = message
+        self.response = None
+
+        self.source_channel = message.channel
+        self.invoker = message.author
+        self.params = []
+
+        params = message.content.split(" ")[1:]
+        idx = 0
+        while idx < len(params):
+            if params[idx].startswith("\"") or params[idx].startswith("'"):
+                terminus = params[idx][0]
+                string = params[idx][1:]
+                while idx < len(params) and not params[idx].endswith(terminus):
+                    string += " {}".format(params[idx])
+                    idx += 1
+
+                self.params.append(string)
+            else:
+                self.params.append(params[idx])
+
+            idx += 1
+
+        if not defer_response:
+            self.make_response()
+
+    async def make_response(self):
+        """Override this method to do whatever work the command needs to do and store it in `response`.
+
+        Remember to call super().make_response() to resolve permissions for the command.
+
         Raises:
             PermissionError: If the user who invoked the command doesn't have the necessary permissions or roles
 
         """
         found_role_permission = False
-        if len(required_roles) > 0:
-            for each in required_roles:
-                if Permissions.can(message.channel, message.sender, role=each):
+        if len(self.required_roles) > 0:
+            for each in self.required_roles:
+                if Permissions.can(self.source_channel, self.invoker, role=each):
                     found_role_permission = True
                     break
 
         found_permission = False
-        if len(required_permissions) > 0:
-            for each in required_permissions:
-                if Permissions.can(message.channel, message.sender, permission=each):
+        if len(self.required_permissions) > 0:
+            for each in self.required_permissions:
+                if Permissions.can(self.source_channel, self.invoker, permission=each):
                     found_permission = True
                     break
 
         if not found_role_permission and not found_permission:
-            raise PermissionError("You don't have the necessary permission!")
-
-        self._raw_message = message
-        self.response = None
-
-        if not defer_response:
-            self.make_response()
-
-    def make_response(self):
-        """Override this method to do whatever work the command needs to do and store it in `response`."""
-        raise NotImplementedError
+            raise BotPermissionError("You don't have the necessary permission!")
 
     async def respond(self, callback):
         """Don't override this method. It is called by the bot to send the response when it is ready to."""
