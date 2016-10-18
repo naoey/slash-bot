@@ -274,44 +274,50 @@ class SlashBot(discord.Client):
 
 
 class CoreFunctions(object):
-    async def cmd_stats(self, sender, channel, params):
-        await config.GLOBAL["bot"].send_typing(channel)
+    class PublicStats(Command):
+        command = "stats"
+        aliases = ["st", ]
+        required_permissions = [Permissions.BOT_OWNER, ]
 
-        uptime = (datetime.datetime.now() - config.STATS.START_TIME).total_seconds()
-        uptime_det = {}
-        uptime_det["days"] = int(uptime // 86400)
-        uptime = uptime - (uptime_det["days"] * 86400)
-        uptime_det["hours"] = int(uptime // 3600)
-        uptime = uptime - (uptime_det["hours"] * 3600)
-        uptime_det["minutes"] = int(uptime // 60)
+        @overrides(Command)
+        async def make_response(self):
+            await super().make_response()
 
-        await config.GLOBAL["bot"].send_message(channel, (
-            "```py\n"
-            "Bot version: {version}\n"
-            "Bot ID: {bot}\n"
-            "Owner ID: {owner}\n"
-            "Uptime: {uptime}\n"
-            "Commands received: {commands}\n"
-            "Messages sent: {messages_sent}\n"
-            # "Commands queue size: {commands_queue}"
-            "Modules active: {modules}\n"
-            "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
-            "Errors encountered: {errors}\n"
-            "```"
-        ).format(
-            version=config.VERSION,
-            bot=config.GLOBAL["bot"].user.id,
-            owner=config.GLOBAL["discord"]["owner_id"],
-            uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
-            commands=config.STATS.COMMANDS_RECEIVED,
-            messages_sent=config.STATS.MESSAGES_SENT,
-            # commands_queue=None,
-            modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
-            servers=config.STATS.SERVERS,
-            text_channels=config.STATS.TEXT_CHANNELS,
-            voice_channels=config.STATS.VOICE_CHANNELS,
-            errors=config.STATS.ERRORS,
-        ))
+            uptime = (datetime.datetime.now() - config.STATS.START_TIME).total_seconds()
+            uptime_det = {}
+            uptime_det["days"] = int(uptime // 86400)
+            uptime = uptime - (uptime_det["days"] * 86400)
+            uptime_det["hours"] = int(uptime // 3600)
+            uptime = uptime - (uptime_det["hours"] * 3600)
+            uptime_det["minutes"] = int(uptime // 60)
+
+            self.response = (
+                "```py\n"
+                "Bot version: {version}\n"
+                "Bot ID: {bot}\n"
+                "Owner ID: {owner}\n"
+                "Uptime: {uptime}\n"
+                "Commands received: {commands}\n"
+                "Messages sent: {messages_sent}\n"
+                # "Commands queue size: {commands_queue}"
+                "Modules active: {modules}\n"
+                "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
+                "Errors encountered: {errors}\n"
+                "```"
+            ).format(
+                version=config.VERSION,
+                bot=config.GLOBAL["bot"].user.id,
+                owner=config.GLOBAL["discord"]["owner_id"],
+                uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
+                commands=config.STATS.COMMANDS_RECEIVED,
+                messages_sent=config.STATS.MESSAGES_SENT,
+                # commands_queue=None,
+                modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
+                servers=config.STATS.SERVERS,
+                text_channels=config.STATS.TEXT_CHANNELS,
+                voice_channels=config.STATS.VOICE_CHANNELS,
+                errors=config.STATS.ERRORS,
+            )
 
 
 class Stats(object):
