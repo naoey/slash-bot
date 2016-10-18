@@ -18,9 +18,10 @@ import threading
 
 import config
 import errors
-import utils
 
-from models import Server, Channel
+from utils import *
+from models import Server, Channel, BotStats
+from commands import *
 
 LOG_CONFIG = {
     "version": 1,
@@ -86,38 +87,39 @@ class SlashBot(discord.Client):
         self.send_message(config.GLOBAL["discord"]["log_channel_id"])
 
     async def activate_modules(self):
-        self.modules_map = {}
-
-        self.modules_map["bot"] = {
-            "module": CoreFunctions(),
-            "subcommands": [x for x, y in CoreFunctions.__dict__.items() if (
-                type(y) == type(lambda:0) and x.startswith("cmd_"))]
-        }
+        for cmd in CoreFunctions.__dict__.values():
+            if isinstance(cmd, type) and issubclass(cmd, Command):
+                if len(cmd.command) > 0:
+                    self.commands_map[cmd.command] = cmd
+                if len(cmd.aliases) > 0:
+                    for each in cmd.aliases:
+                        self.commands_map[each] = cmd
 
         for name, module_details in config.MODULES.items():
             if module_details["active"]:
                 try:
-                    imported_module = importlib.import_module("modules.{}".format(module_details["location"]))
-                    main_class = getattr(imported_module, module_details["class"])
+                    imported_module = importlib.import_module("modules.{}".format(module_details["location"])).__dict__
+                    for attribute in imported_module.values():
+                        if isinstance(attribute, type) and issubclass(attribute, Command):
+                            logging.debug("Iterating {} {}".format(attribute.command, attribute.aliases))
+                            if len(attribute.command) > 0:
+                                self.commands_map[attribute.command] = attribute
+                            if len(attribute.aliases) > 0:
+                                for each in attribute.aliases:
+                                    self.commands_map[each] = attribute
 
-                    self.modules_map[module_details["prefix"]] = {
-                        "module": main_class(),
-                        "subcommands": [x for x, y in main_class.__dict__.items() if (
-                            type(y) == type(lambda:0) and x.startswith("cmd_"))],
-                    }
-
-                    logging.debug("Activated module '{}".format(name))
+                    logging.debug("Activated module '{}'".format(name))
                     config.STATS.MODULES_ACTIVE += 1
 
                 except ImportError as ie:
-                    logging.exception("Couldn't import module '{}'".format(name))
+                    logging.exception("Couln't import module '{}'".format(name))
 
                 except Exception as e:
                     logging.debug("{}".format(e))
                     logging.exception("Unkown error activating module {}".format(name))
 
         logging.info("Registered {} active modules".format(config.STATS.MODULES_ACTIVE))
-        logging.debug("Registered modules map is {}".format(self.modules_map))
+        logging.debug("Registered commands map is {}".format(self.commands_map))
 
     async def begin_status_loop(self):
         try:
