@@ -91,7 +91,8 @@ class Command(object):
                     found_permission = True
                     break
 
-        if not found_role_permission and not found_permission:
+        if ((len(self.required_roles) > 0 and not found_role_permission) and
+                (len(self.required_permissions) > 0 and not found_permission)):
             raise BotPermissionError("You don't have the necessary permission!")
 
     async def respond(self, callback):

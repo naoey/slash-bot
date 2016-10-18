@@ -5,6 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
+
 class SlashBotError(Exception):
     pass
 
