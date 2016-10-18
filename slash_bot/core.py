@@ -258,11 +258,11 @@ class SlashBot(discord.Client):
     """
     Discord event responders
     """
-    async def send_message(self, channel, message):
+    async def send_message(self, message, channel):
         await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
 
-    async def send_error(self, channel, error):
+    async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
         await super().send_message(channel, "🚫 **Error:** {}".format(error))
 
