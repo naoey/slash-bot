@@ -55,15 +55,19 @@ class Command(object):
             if params[idx].startswith("\"") or params[idx].startswith("'"):
                 terminus = params[idx][0]
                 string = params[idx][1:]
-                while idx < len(params) and not params[idx].endswith(terminus):
+                idx += 1
+                while idx < len(params):
+                    if params[idx].endswith(terminus):
+                        string += " {}".format(params[idx])[:-1]
+                        idx += 1
+                        break
                     string += " {}".format(params[idx])
                     idx += 1
 
                 self.params.append(string)
             else:
                 self.params.append(params[idx])
-
-            idx += 1
+                idx += 1
 
     async def make_response(self):
         """Override this method to do whatever work the command needs to do and store it in `response`.
