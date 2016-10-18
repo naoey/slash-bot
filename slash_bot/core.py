@@ -100,15 +100,19 @@ class SlashBot(discord.Client):
         for name, module_details in config.MODULES.items():
             if module_details["active"]:
                 try:
-                    imported_module = importlib.import_module("modules.{}".format(module_details["location"])).__dict__
-                    for attribute in imported_module.values():
-                        if isinstance(attribute, type) and issubclass(attribute, Command):
-                            logging.debug("Iterating {} {}".format(attribute.command, attribute.aliases))
-                            if len(attribute.command) > 0:
-                                self.commands_map[attribute.command] = attribute
-                            if len(attribute.aliases) > 0:
-                                for each in attribute.aliases:
-                                    self.commands_map[each] = attribute
+                    imported_module = importlib.import_module("modules.{}".format(module_details["location"]))
+                    commands_in_module = [
+                        v for k, v in imported_module.__dict__.items() if (
+                            isinstance(v, type) and v.__module__ == imported_module.__name__ and issubclass(v, Command)
+                        )
+                    ]
+
+                    for command in commands_in_module:
+                        if len(command.command) > 0:
+                            self.commands_map[command.command] = command
+                        if len(command.aliases) > 0:
+                            for alias in command.aliases:
+                                self.commands_map[alias] = command
 
                     logging.debug("Activated module '{}'".format(name))
                     config.STATS.MODULES_ACTIVE += 1
