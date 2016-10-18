@@ -34,7 +34,7 @@ class Command(object):
     required_roles = []
 
     def __init__(self, message):
-        """Create a new command object to process and respond to a command.
+        """Don't do this. Use `create_command()` instead.
 
         Args:
             message (discord.Message): The Message that triggered this command
@@ -43,7 +43,7 @@ class Command(object):
 
         """
         self._raw_message = message
-        self.response = None
+        self.response = ""
 
         self.source_channel = message.channel
         self.invoker = message.author
@@ -68,6 +68,19 @@ class Command(object):
             else:
                 self.params.append(params[idx])
                 idx += 1
+
+    @classmethod
+    async def create_command(cls, message):
+        """Use this to create commands so that commands that may have subcommands can return the appropriate
+        type of command.
+
+        Commands must override this method
+
+        Returns:
+            command (Command): A subclass of Command
+
+        """
+        return cls(message)
 
     async def make_response(self):
         """Override this method to do whatever work the command needs to do and store it in `response`.
@@ -97,11 +110,11 @@ class Command(object):
             raise BotPermissionError("You don't have the necessary permission!")
 
     async def respond(self, callback):
-        """Don't override this method. It is called by the bot to send the response when it is ready to."""
-        if self.response is None:
+        """Called by the bot to send the response when it is ready to."""
+        if self.response == "":
             await self.make_response()
-
-        await callback(self.response)
+        if self.response is not None:
+            await callback(self.response)
 
 
 class Permissions(object):
