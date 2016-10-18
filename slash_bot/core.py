@@ -16,11 +16,14 @@ import json
 import importlib
 import threading
 
+from functools import partial
+
 import config
 import errors
-import utils
 
-from models import Server, Channel
+from utils import *
+from models import Server, Channel, BotStats
+from commands import *
 
 LOG_CONFIG = {
     "version": 1,
@@ -86,38 +89,39 @@ class SlashBot(discord.Client):
         self.send_message(config.GLOBAL["discord"]["log_channel_id"])
 
     async def activate_modules(self):
-        self.modules_map = {}
-
-        self.modules_map["bot"] = {
-            "module": CoreFunctions(),
-            "subcommands": [x for x, y in CoreFunctions.__dict__.items() if (
-                type(y) == type(lambda:0) and x.startswith("cmd_"))]
-        }
+        for cmd in CoreFunctions.__dict__.values():
+            if isinstance(cmd, type) and issubclass(cmd, Command):
+                if len(cmd.command) > 0:
+                    self.commands_map[cmd.command] = cmd
+                if len(cmd.aliases) > 0:
+                    for each in cmd.aliases:
+                        self.commands_map[each] = cmd
 
         for name, module_details in config.MODULES.items():
             if module_details["active"]:
                 try:
-                    imported_module = importlib.import_module("modules.{}".format(module_details["location"]))
-                    main_class = getattr(imported_module, module_details["class"])
+                    imported_module = importlib.import_module("modules.{}".format(module_details["location"])).__dict__
+                    for attribute in imported_module.values():
+                        if isinstance(attribute, type) and issubclass(attribute, Command):
+                            logging.debug("Iterating {} {}".format(attribute.command, attribute.aliases))
+                            if len(attribute.command) > 0:
+                                self.commands_map[attribute.command] = attribute
+                            if len(attribute.aliases) > 0:
+                                for each in attribute.aliases:
+                                    self.commands_map[each] = attribute
 
-                    self.modules_map[module_details["prefix"]] = {
-                        "module": main_class(),
-                        "subcommands": [x for x, y in main_class.__dict__.items() if (
-                            type(y) == type(lambda:0) and x.startswith("cmd_"))],
-                    }
-
-                    logging.debug("Activated module '{}".format(name))
+                    logging.debug("Activated module '{}'".format(name))
                     config.STATS.MODULES_ACTIVE += 1
 
                 except ImportError as ie:
-                    logging.exception("Couldn't import module '{}'".format(name))
+                    logging.exception("Couln't import module '{}'".format(name))
 
                 except Exception as e:
                     logging.debug("{}".format(e))
                     logging.exception("Unkown error activating module {}".format(name))
 
         logging.info("Registered {} active modules".format(config.STATS.MODULES_ACTIVE))
-        logging.debug("Registered modules map is {}".format(self.modules_map))
+        logging.debug("Registered commands map is {}".format(self.commands_map))
 
     async def begin_status_loop(self):
         try:
@@ -146,45 +150,45 @@ class SlashBot(discord.Client):
         logging.info("Bot version {}".format(config.VERSION))
 
         config.STATS = Stats()
-        config.STATS.SERVERS = len(self.servers)
 
         for server in self.servers:
             await self.on_server_join(server)
 
-            for channel in server.channels:
-                if channel.type == discord.ChannelType.text:
-                    config.STATS.TEXT_CHANNELS += 1
-                elif channel.type == discord.ChannelType.voice:
-                    config.STATS.VOICE_CHANNELS += 1
-
         self.modules_map = {}
-
+        self.commands_map = {}
         logging.info("Activating modules")
         await self.activate_modules()
-
-        # await self.begin_status_loop()
 
     async def on_message(self, message):
         if message.content.startswith(config.BOT_PREFIX):
             config.STATS.PREFIXED_MESSAGES_RECEIVED += 1
 
-            params = message.content[1:].split(" ")
-            command = params.pop(0)
-            subcommand = self._module_handler_prefix + params.pop(0)
+        command = message.content[1:].split(" ")[0]
 
-            if command in self.modules_map and subcommand in self.modules_map[command]["subcommands"]:
-                config.STATS.COMMANDS_RECEIVED += 1
+        if command in self.commands_map.keys():
+            config.STATS.COMMANDS_RECEIVED += 1
 
-                try:
-                    await getattr(self.modules_map[command]["module"], subcommand)(message.author, message.channel, params)
-                except errors.SlashBotError as sbe:
-                    await self.send_error(message.channel, sbe)
-                except Exception as e:
-                    logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
-                    logging.exception("An error occurred")
-                    await self.send_error(message.channel, "An error occurred 🙈")
+            await self.send_typing(message.channel)
+
+            try:
+                # await getattr(self.modules_map[command]["module"], subcommand)(message.author, message.channel, params)
+                command = self.commands_map[command](message, defer_response=True)
+                await command.make_response()
+                response_channel = partial(self.send_message, channel=message.channel)
+                self.send_message
+                await command.respond(response_channel)
+            except errors.BotPermissionError as pe:
+                await self.send_error("{} {}".format(message.author.mention, pe), message.channel)
+            except errors.SlashBotError as sbe:
+                await self.send_error(sbe, message.channel)
+            except Exception as e:
+                logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
+                logging.exception("An error occurred")
+                await self.send_error("An error occurred 🙈", message.channel)
 
     async def on_server_join(self, server):
+        config.STATS.SERVERS += 1
+
         new_server = {
             "server_id": server.id,
             "server_name": server.name,
@@ -209,6 +213,8 @@ class SlashBot(discord.Client):
             await self.on_channel_create(channel)
 
     async def on_server_remove(self, server):
+        config.STATS.SERVERS -= 1
+
         try:
             server_instance = Server.get(server_id=server.id)
             server_instance.currently_joined = False
@@ -221,6 +227,11 @@ class SlashBot(discord.Client):
             ))
 
     async def on_channel_create(self, channel):
+        if channel.type == discord.ChannelType.text:
+            config.STATS.TEXT_CHANNELS += 1
+        elif channel.type == discord.ChannelType.voice:
+            config.STATS.VOICE_CHANNELS += 1
+
         new_channel = {
             "channel_id": channel.id,
             "channel_name": channel.name,
@@ -238,14 +249,20 @@ class SlashBot(discord.Client):
                 ))
                 channel_instance.update(channel_name=channel.name).execute()
 
+    async def on_channel_delete(self, channel):
+        if channel.type == discord.ChannelType.text:
+            config.STATS.TEXT_CHANNELS -= 1
+        elif channel.type == discord.ChannelType.voice:
+            config.STATS.VOICE_CHANNELS -= 1
+
     """
     Discord event responders
     """
-    async def send_message(self, channel, message):
+    async def send_message(self, message, channel):
         await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
 
-    async def send_error(self, channel, error):
+    async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
         await super().send_message(channel, "🚫 **Error:** {}".format(error))
 
@@ -257,44 +274,49 @@ class SlashBot(discord.Client):
 
 
 class CoreFunctions(object):
-    async def cmd_stats(self, sender, channel, params):
-        await config.GLOBAL["bot"].send_typing(channel)
+    class PublicStats(Command):
+        command = "stats"
+        aliases = ["st", ]
 
-        uptime = (datetime.datetime.now() - config.STATS.START_TIME).total_seconds()
-        uptime_det = {}
-        uptime_det["days"] = int(uptime // 86400)
-        uptime = uptime - (uptime_det["days"] * 86400)
-        uptime_det["hours"] = int(uptime // 3600)
-        uptime = uptime - (uptime_det["hours"] * 3600)
-        uptime_det["minutes"] = int(uptime // 60)
+        @overrides(Command)
+        async def make_response(self):
+            await super().make_response()
 
-        await config.GLOBAL["bot"].send_message(channel, (
-            "```py\n"
-            "Bot version: {version}\n"
-            "Bot ID: {bot}\n"
-            "Owner ID: {owner}\n"
-            "Uptime: {uptime}\n"
-            "Commands received: {commands}\n"
-            "Messages sent: {messages_sent}\n"
-            # "Commands queue size: {commands_queue}"
-            "Modules active: {modules}\n"
-            "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
-            "Errors encountered: {errors}\n"
-            "```"
-        ).format(
-            version=config.VERSION,
-            bot=config.GLOBAL["bot"].user.id,
-            owner=config.GLOBAL["discord"]["owner_id"],
-            uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
-            commands=config.STATS.COMMANDS_RECEIVED,
-            messages_sent=config.STATS.MESSAGES_SENT,
-            # commands_queue=None,
-            modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
-            servers=config.STATS.SERVERS,
-            text_channels=config.STATS.TEXT_CHANNELS,
-            voice_channels=config.STATS.VOICE_CHANNELS,
-            errors=config.STATS.ERRORS,
-        ))
+            uptime = (datetime.datetime.now() - config.STATS.START_TIME).total_seconds()
+            uptime_det = {}
+            uptime_det["days"] = int(uptime // 86400)
+            uptime = uptime - (uptime_det["days"] * 86400)
+            uptime_det["hours"] = int(uptime // 3600)
+            uptime = uptime - (uptime_det["hours"] * 3600)
+            uptime_det["minutes"] = int(uptime // 60)
+
+            self.response = (
+                "```py\n"
+                "Bot version: {version}\n"
+                "Bot ID: {bot}\n"
+                "Owner ID: {owner}\n"
+                "Uptime: {uptime}\n"
+                "Commands received: {commands}\n"
+                "Messages sent: {messages_sent}\n"
+                # "Commands queue size: {commands_queue}"
+                "Modules active: {modules}\n"
+                "Servers: {servers} | Text channels: {text_channels} | Voice channels: {voice_channels}\n"
+                "Errors encountered: {errors}\n"
+                "```"
+            ).format(
+                version=config.VERSION,
+                bot=config.GLOBAL["bot"].user.id,
+                owner=config.GLOBAL["discord"]["owner_id"],
+                uptime="{days} days, {hours} hours, {minutes} minutes".format(**uptime_det),
+                commands=config.STATS.COMMANDS_RECEIVED,
+                messages_sent=config.STATS.MESSAGES_SENT,
+                # commands_queue=None,
+                modules=", ".join(config.GLOBAL["bot"].modules_map.keys()),
+                servers=config.STATS.SERVERS,
+                text_channels=config.STATS.TEXT_CHANNELS,
+                voice_channels=config.STATS.VOICE_CHANNELS,
+                errors=config.STATS.ERRORS,
+            )
 
 
 class Stats(object):
@@ -339,4 +361,4 @@ if __name__ == "__main__":
     logging.info("Initialising SlashBot")
     SlashBot().run()
 
-    models.BotStats.create(run_time=str(time.time()), stats_str=json.dumps(config.STATS.serialise()))
+    BotStats.create(run_time=str(time.time()), stats_str=json.dumps(config.STATS.serialise()))
