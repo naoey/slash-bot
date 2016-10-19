@@ -77,6 +77,8 @@ class SlashBot(discord.Client):
 
         config.GLOBAL["bot"] = self
 
+        self._channel_message_subscriptions = {}
+
         # discord_logger = DiscordLogHandler()
         # discord_logger.setLevel(logging.INFO)
         # discord_logger.setFormatter(logging.Formatter("%(message)s"))
@@ -164,6 +166,10 @@ class SlashBot(discord.Client):
         await self.activate_modules()
 
     async def on_message(self, message):
+        if message.channel.id in self._channel_message_subscriptions.keys():
+            for each in self._channel_message_subscriptions[message.channel.id]:
+                await each["callback"](message=message)
+
         if message.content.startswith(config.BOT_PREFIX):
             config.STATS.PREFIXED_MESSAGES_RECEIVED += 1
 
@@ -280,6 +286,38 @@ class SlashBot(discord.Client):
         else:
             await super().send_message(channel, "🚫 **Error:** {}".format(error))
 
+    """
+    Subscriptions
+    """
+    def subscribe_channel_messages(self, channel_id, callback):
+        token = channel_id + "_" + random_string()
+        while token in self._channel_message_subscriptions.keys():
+            token = channel_id + "_" + random_string()
+
+        if callable(callback) and channel_id is not None:
+            if channel_id in self._channel_message_subscriptions.keys():
+                self._channel_message_subscriptions[channel_id].append({
+                    "token": token,
+                    "callback": callback,
+                })
+            else:
+                self._channel_message_subscriptions[channel_id] = [{
+                    "token": token,
+                    "callback": callback,
+                }, ]
+
+        return token
+
+    def unsubscribe_channel_messages(self, token):
+        if token is None:
+            return
+
+        try:
+            subscription = self._channel_message_subscriptions[token.split("_")[0]]
+            subscription = next((x for x in subscription if x["token"] == token))
+            del subscription
+        except Exception as e:
+            raise
     """
     Destruction
     """
