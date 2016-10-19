@@ -28,5 +28,6 @@ def overrides(interface_class):
         return method
     return overrider
 
+
 def random_string(size=6):
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(size))

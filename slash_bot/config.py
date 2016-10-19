@@ -21,6 +21,11 @@ PATHS = {
 }
 
 MODULES = {
+    "Administration": {
+        "location": "administration",
+        "active": True,
+        "config": {},
+    },
     "League of Legends": {
         "location": "games.lol",
         "class": "LeagueOfLegends",
