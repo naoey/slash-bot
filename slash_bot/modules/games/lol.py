@@ -857,31 +857,15 @@ def update_summoner_info(summoner):
 
 
 def parse_username_region(params):
-    if params[0].startswith("\"") or params[0].startswith("'"):
-        terminus = params[0][0]
-        name = params.pop(0)
-
-        try:
-            if not name.endswith(terminus):
-                while not params[0].endswith(terminus):
-                    name += " " + params.pop(0)
-                name += " " + params.pop(0)
-
-            region = REGIONS[params.pop(0).upper()]
-            name = name[1:-1]
-
-        except IndexError:
-            raise CommandFormatError("Error understanding what you said. Did you miss any quotes?")
-        except KeyError:
-            raise SlashBotValueError("Unknown region")
-
-    else:
-        try:
+    try:
+        if len(params) == 2:
+            return (params[0], REGIONS[params[1]])
+        else:
             region = REGIONS[params[-1].upper()]
-        except KeyError:
-            raise SlashBotValueError("Unknown region")
-        params = params[:-1]
-        name = " ".join(params)
+            params = params[:-1]
+            name = " ".join(params)
+    except KeyError:
+        raise SlashBotValueError("Unknown region")
 
     return (name, region)
 
