@@ -187,7 +187,7 @@ class SlashBot(discord.Client):
             except Exception as e:
                 logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
                 logging.exception("An error occurred")
-                await self.send_error("An error occurred 🙈", message.channel)
+                await self.send_error(SlashBotError("An error occurred 🙈"), message.channel)
 
     async def on_server_join(self, server):
         config.STATS.SERVERS += 1
@@ -267,7 +267,10 @@ class SlashBot(discord.Client):
 
     async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
-        await super().send_message(channel, "🚫 **Error:** {}".format(error))
+        if error.to_be_mentioned is not None:
+            await super().send_message(channel, "{}\n🚫 **Error:** {}".format(error.to_be_mentioned, error))
+        else:
+            await super().send_message(channel, "🚫 **Error:** {}".format(error))
 
     """
     Destruction
