@@ -7,7 +7,9 @@ Created on 2016-08-23
 
 
 class SlashBotError(Exception):
-    pass
+    def __init__(self, message, mention=None):
+        super().__init__(message)
+        self.to_be_mentioned = mention
 
 
 class ConfigError(SlashBotError):

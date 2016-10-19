@@ -187,7 +187,7 @@ class SlashBot(discord.Client):
             except Exception as e:
                 logging.debug("{}: {} error occurred while processing message {}".format(type(e), e, message))
                 logging.exception("An error occurred")
-                await self.send_error("An error occurred 🙈", message.channel)
+                await self.send_error(SlashBotError("An error occurred 🙈"), message.channel)
 
     async def on_server_join(self, server):
         config.STATS.SERVERS += 1
@@ -261,13 +261,24 @@ class SlashBot(discord.Client):
     """
     Discord event responders
     """
-    async def send_message(self, message, channel):
-        await super().send_message(channel, message)
+    async def send_message(self, message, channel, chunk=False):
+        if len(message) >= 2000 or chunk:
+            if Command.response_chunk_marker in message:
+                messages = message.split(Command.response_chunk_marker)
+            else:
+                messages = (string[0 + i: length + i] for i in range(0, len(message), 1999))
+            for msg in messages:
+                await super().send_message(channel, msg)
+        else:
+            await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
 
     async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
-        await super().send_message(channel, "🚫 **Error:** {}".format(error))
+        if error.to_be_mentioned is not None:
+            await super().send_message(channel, "{}\n🚫 **Error:** {}".format(error.to_be_mentioned, error))
+        else:
+            await super().send_message(channel, "🚫 **Error:** {}".format(error))
 
     """
     Destruction
@@ -340,6 +351,9 @@ class Stats(object):
         for attr, val in self.__dict__.items():
             if attr.startswith("__") or attr.endswith("__"):
                 continue
+
+            if type(val) == datetime.datetime:
+                val = val.strftime("%Y-%m-%D %H:%M:%S")
 
             serial[attr] = val
 
