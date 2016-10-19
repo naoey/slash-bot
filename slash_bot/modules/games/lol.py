@@ -323,6 +323,8 @@ class LeagueOfLegendsCommand(Command):
     command = "lol"
 
     def __init__(self, message):
+        super().__init__(message)
+
         self.subcommands_map = {}
         for cmd in LeagueOfLegendsFunctions.__dict__.values():
             if isinstance(cmd, type) and issubclass(cmd, LeagueOfLegendsCommand):
@@ -331,7 +333,6 @@ class LeagueOfLegendsCommand(Command):
                     if len(cmd.aliases) > 0:
                         for each in cmd.aliases:
                             self.subcommands_map[each] = cmd
-        logger.debug("Subcommands map is {}".format(self.subcommands_map))
 
     def get_delegate_command(self):
         if len(self.params) > 0 and self.params[0] in self.subcommands_map.keys():
@@ -347,13 +348,16 @@ class LeagueOfLegendsFunctions(object):
         command = "setname"
         aliases = ["setn", ]
 
-        @overrides
+        @overrides(Command)
         async def make_response(self):
-            summoner, region = parse_username_region(params)
+            try:
+                summoner, region = parse_username_region(self.params[1:])
+            except SlashBotValueError as e:
+                raise SlashBotValueError(str(e), mention=self.invoker.mention)
 
-            user = User.get_or_create(user_id=sender.id, defaults={
-                "user_id": sender.id,
-                "user_name": sender.name,
+            user = User.get_or_create(user_id=self.invoker.id, defaults={
+                "user_id": self.invoker.id,
+                "user_name": self.invoker.name,
             })[0]
 
             new_data = {
@@ -361,13 +365,13 @@ class LeagueOfLegendsFunctions(object):
                 "region": region,
                 "user": user.user_id,
                 "date_registered": datetime.datetime.now(),
-                "server_registered": sender.server.id,
-                "channel_registered": channel.id,
+                "server_registered": self.invoker.server.id,
+                "channel_registered": self.source_channel.id,
                 "last_update_data": None,
                 "last_updated": None,
             }
 
-            riotuser, created = RiotUser.get_or_create(defaults=new_data, user=sender.id, region=region)
+            riotuser, created = RiotUser.get_or_create(defaults=new_data, user=self.invoker.id, region=region)
 
             if not created:
                 for field, value in new_data.items():
@@ -378,13 +382,13 @@ class LeagueOfLegendsFunctions(object):
 
                 riotuser.save()
                 self.response = "{sender}\nUpdated your LoL username to {name} on region {region} 👍".format(
-                    sender=sender.mention,
+                    sender=self.invoker.mention,
                     name=summoner,
                     region=REGION_NAMES[region]
                 )
             else:
                 self.response = "{sender}\nStored your LoL name on {region} 👍".format(
-                    sender=sender.mention,
+                    sender=self.invoker.mention,
                     region=REGION_NAMES[region]
                 )
 
@@ -394,7 +398,7 @@ class LeagueOfLegendsFunctions(object):
 
         @overrides(Command)
         async def make_response(self):
-            local_summoner = get_summoner_info(sender, params)
+            local_summoner = get_summoner_info(self.invoker, self.params[1:])
 
             if local_summoner["last_updated"] is not None and (
                 datetime.datetime.now() - local_summoner["last_updated"]
@@ -411,7 +415,7 @@ class LeagueOfLegendsFunctions(object):
 
             except riotwatcher.LoLException as e:
                 if e == riotwatcher.error_404:
-                    raise SlashBotValueError("This summoner doesn't seem to have played any games!")
+                    raise SlashBotValueError("This summoner doesn't seem to have played any games!", mention=self.invoker.mention)
 
             champions_played = {}
             try:
@@ -599,7 +603,7 @@ class LeagueOfLegendsFunctions(object):
 
         @overrides(Command)
         async def make_response(self):
-            summoner = get_summoner_info(sender, params)
+            summoner = get_summoner_info(self.invoker, self.params[1:])
 
             try:
                 platform = riotwatcher.platforms[summoner["region"]]
@@ -665,7 +669,8 @@ class LeagueOfLegendsFunctions(object):
 
             except riotwatcher.LoLException as e:
                 if e == riotwatcher.error_404:
-                    return "Summoner {name} is not in game on {region}".format(
+                    return "{sender}\nSummoner {name} is not in game on {region}".format(
+                        sender=self.invoker.mention,
                         name=summoner["name"],
                         region=REGION_NAMES[summoner["region"]]
                     )
@@ -678,12 +683,12 @@ class LeagueOfLegendsFunctions(object):
 
         @overrides(Command)
         async def make_response(self):
-            summoner = get_summoner_info(sender, params)
+            summoner = get_summoner_info(self.invoker, self.params[1:])
 
             try:
                 rune_pages = api.get_rune_pages([summoner["id"], ], region=summoner["region"])
             except riotwatcher.LoLException:
-                raise SlashBotValueError("Error getting rune pages for this summoner")
+                raise SlashBotValueError("Error getting rune pages for this summoner", mention=self.invoker.mention)
 
             rune_page_data = {}
             for page in rune_pages[summoner["id"]]["pages"]:
@@ -716,12 +721,12 @@ class LeagueOfLegendsFunctions(object):
 
         @overrides(Command)
         async def make_response(self):
-            summoner = get_summoner_info(sender, params)
+            summoner = get_summoner_info(self.invoker, self.params[1:])
 
             try:
                 mastery_pages = api.get_mastery_pages([summoner["id"], ], region=summoner["region"])
             except riotwatcher.LoLException:
-                raise SlashBotValueError("Error getting mastery pages for this summoner")
+                raise SlashBotValueError("Error getting mastery pages for this summoner", mention=self.invoker.mention)
 
             masteries_summary = "Summoner level: {}\n".format(summoner["level"])
             idx = 1
@@ -747,10 +752,10 @@ class LeagueOfLegendsFunctions(object):
         @overrides(Command)
         async def make_response(self):
             region = "NA"
-            if len(params) > 0:
-                region = params[0]
+            if len(self.params) > 1:
+                region = self.params[1]
                 if region not in REGIONS.keys():
-                    raise SlashBotValueError("{} unknown region {}".format(sender.mention, region))
+                    raise SlashBotValueError("Unknown region {}".format(region), mention=self.invoker.mention)
 
             free_champions = api.get_all_champions(region=REGIONS[region], free_to_play=True)["champions"]
             free_champions = [
@@ -766,7 +771,7 @@ class LeagueOfLegendsFunctions(object):
                 champions=free_champions_summary
             )
 
-            return free_champions_summary
+            self.response = free_champions_summary
 
 
 def get_summoner_info(discord_user, params):
