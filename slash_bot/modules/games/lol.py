@@ -189,11 +189,6 @@ SUMMONER_SPELLS = None
 
 CONFIG = config.MODULES["League of Legends"]["config"]
 
-
-def riot_api_error():
-    logger.error("Non 404/204 error with riot API")
-    return ThirdPartyAPIError("Error communicating with the Riot Games API")
-
 if _API_KEY is None:
     with open(config.PATHS["rito_creds"], "r") as cf_r:
         _API_KEY = json.load(cf_r)["api_key"]
@@ -201,13 +196,77 @@ if _API_KEY is None:
 if api is None:
     api = riotwatcher.RiotWatcher(_API_KEY)
 
+
+def riot_api_error():
+    logger.error("Non 404/204 error with riot API")
+    return ThirdPartyAPIError("Error communicating with the Riot Games API")
+
+
+def refresh_static_data(key="ALL"):
+    """Refreshes all static LoL data
+
+    Retrieves static data for champions, masteries, runes and summoner spells and assigns them to their
+    respective global variables if they haven't been initialised yet or `key` includes them.
+
+    Args:
+        key (str): Valid values are the names of any of the static variables or "ALL"
+
+    """
+    global CHAMPIONS
+    global MASTERIES
+    global RUNES
+    global SUMMONER_SPELLS
+
+    if CHAMPIONS is None or key in ["CHAMPIONS", "ALL"]:
+        CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
+        logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
+
+    if MASTERIES is None or key in ["MASTERIES", "ALL"]:
+        MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
+        logger.debug("Collected {} masteries".format(len(MASTERIES["data"])))
+
+    if RUNES is None or key in ["RUNES", "ALL"]:
+        RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
+        logger.debug("Collected {} runes".format(len(RUNES["data"])))
+
+    if SUMMONER_SPELLS is None or key in ["SUMMONER_SPELLS", "ALL"]:
+        SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
+        logger.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
+
+
+def refresh_champion_assets(champion_name=None):
+    """Refreshes champion icons
+
+    If `champion_name` is not given, the method loads any missing icons.
+
+    Args:
+        champion_name (str): If given, reloads icon regardless of whether it already exists
+
+    Raises:
+        ValueError: If champion name is given and it is not a valid champion
+
+    """
+    if champion_name is not None:
+        if champion_name not in [x[name] for x in CHAMPIONS["data"]]:
+            raise ValueError("{} is not a valid champion".format(champion_name))
+        AssetStore.store(api.get_champion_icon(champion_name=champion_name))
+
+    for id_, data in CHAMPIONS["data"].items():
+        try:
+            AssetStore.get("lol/icons/champions/{}".format(id_))
+        except AssetsError:
+            AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
+
 current_time = datetime.datetime.now()
 logger.debug("Collecting static data")
 try:
     CHAMPIONS = RiotStaticData.get(key="CHAMPIONS")
     if int((current_time - CHAMPIONS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
         refresh_static_data(key="CHAMPIONS")
-        RiotStaticData.update(value=json.dumps(CHAMPIONS)).where(RiotStaticData.key == "CHAMPIONS").execute()
+        RiotStaticData.update(
+            value=json.dumps(CHAMPIONS),
+            updated=datetime.datetime.now()
+        ).where(RiotStaticData.key == "CHAMPIONS").execute()
     else:
         logger.debug("Champions already exist")
         CHAMPIONS = json.loads(CHAMPIONS.value)
@@ -215,7 +274,10 @@ try:
     MASTERIES = RiotStaticData.get(key="MASTERIES")
     if int((current_time - MASTERIES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
         refresh_static_data(key="MASTERIES")
-        RiotStaticData.update(value=json.dumps(MASTERIES)).where(RiotStaticData.key == "MASTERIES").execute()
+        RiotStaticData.update(
+            value=json.dumps(MASTERIES),
+            updated=datetime.datetime.now()
+        ).where(RiotStaticData.key == "MASTERIES").execute()
     else:
         logger.debug("Masteries already exist")
         MASTERIES = json.loads(MASTERIES.value)
@@ -223,7 +285,10 @@ try:
     RUNES = RiotStaticData.get(key="RUNES")
     if int((current_time - RUNES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
         refresh_static_data(key="RUNES")
-        RiotStaticData.update(value=json.dumps(RUNES)).where(RiotStaticData.key == "RUNES").execute()
+        RiotStaticData.update(
+            value=json.dumps(RUNES),
+            updated=datetime.datetime.now()
+        ).where(RiotStaticData.key == "RUNES").execute()
     else:
         logger.debug("Runes already exist")
         RUNES = json.loads(RUNES.value)
@@ -231,13 +296,16 @@ try:
     SUMMONER_SPELLS = RiotStaticData.get(key="SUMMONER_SPELLS")
     if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
         refresh_static_data(key="SUMMONER_SPELLS")
-        RiotStaticData.update(value=json.dumps(SUMMONER_SPELLS)).where(RiotStaticData.key == "SUMMONER_SPELLS").execute()
+        RiotStaticData.update(
+            value=json.dumps(SUMMONER_SPELLS),
+            updated=datetime.datetime.now()
+        ).where(RiotStaticData.key == "SUMMONER_SPELLS").execute()
     else:
         logger.debug("Summoner spells already exist")
         SUMMONER_SPELLS = json.loads(SUMMONER_SPELLS.value)
 
 except RiotStaticData.DoesNotExist:
-    logger.debug("One or more static data keys are missing or have values older than the specified interval, refreshing all")
+    logger.debug("One or more static data keys are missing, refreshing all")
     refresh_static_data()
     timestamp = datetime.datetime.now()
 
@@ -247,7 +315,7 @@ except RiotStaticData.DoesNotExist:
         {"key": "RUNES", "value": json.dumps(RUNES), "updated": timestamp},
         {"key": "SUMMONER_SPELLS", "value": json.dumps(SUMMONER_SPELLS), "updated": timestamp},
     ]
-
+    # TODO: Change to upsert
     RiotStaticData.insert_many(static_data).execute()
 
 
@@ -263,6 +331,7 @@ class LeagueOfLegendsCommand(Command):
                     if len(cmd.aliases) > 0:
                         for each in cmd.aliases:
                             self.subcommands_map[each] = cmd
+        logger.debug("Subcommands map is {}".format(self.subcommands_map))
 
     def get_delegate_command(self):
         if len(self.params) > 0 and self.params[0] in self.subcommands_map.keys():
@@ -273,7 +342,7 @@ class LeagueOfLegendsCommand(Command):
         return LeagueOfLegendsCommand(message).get_delegate_command()
 
 
-class LeagueOFLegendsFunctions(object):
+class LeagueOfLegendsFunctions(object):
     class SetName(LeagueOfLegendsCommand):
         command = "setname"
         aliases = ["setn", ]
@@ -641,111 +710,63 @@ class LeagueOFLegendsFunctions(object):
 
             self.response = "```py\n{}\n```".format(runes_summary)
 
-class LeagueOfLegendsFunctionsOld(object):
-    async def masteries(self, sender, channel, params):
-        summoner = get_summoner_info(sender, params)
+    class PlayerMasteryPages(LeagueOfLegendsCommand):
+        command = "mastery"
+        aliases = ["m", "masterypages", ]
 
-        try:
-            mastery_pages = api.get_mastery_pages([summoner["id"], ], region=summoner["region"])
-        except riotwatcher.LoLException:
-            raise SlashBotValueError("Error getting mastery pages for this summoner")
+        @overrides(Command)
+        async def make_response(self):
+            summoner = get_summoner_info(sender, params)
 
-        masteries_summary = "Summoner level: {}\n".format(summoner["level"])
-        idx = 1
-        for page in mastery_pages[summoner["id"]]["pages"]:
             try:
-                masteries_summary += "• {page}: {ferocity}-{cunning}-{resolve}".format(
-                    page=page["name"],
-                    **get_masteries(page["masteries"]),
-                )
-            except KeyError:
-                masteries_summary += "• {page}: 0-0-0".format(page=page["name"])
+                mastery_pages = api.get_mastery_pages([summoner["id"], ], region=summoner["region"])
+            except riotwatcher.LoLException:
+                raise SlashBotValueError("Error getting mastery pages for this summoner")
 
-            idx += 1
-            if idx <= len(mastery_pages[summoner["id"]]["pages"]):
-                masteries_summary += "\n"
+            masteries_summary = "Summoner level: {}\n".format(summoner["level"])
+            idx = 1
+            for page in mastery_pages[summoner["id"]]["pages"]:
+                try:
+                    masteries_summary += "• {page}: {ferocity}-{cunning}-{resolve}".format(
+                        page=page["name"],
+                        **get_masteries(page["masteries"]),
+                    )
+                except KeyError:
+                    masteries_summary += "• {page}: 0-0-0".format(page=page["name"])
 
-        return "```py\n{}\n```".format(masteries_summary)
+                idx += 1
+                if idx <= len(mastery_pages[summoner["id"]]["pages"]):
+                    masteries_summary += "\n"
 
-    async def freechamps(self, sender, channel, params):
-        BOT.send_typing(channel)
-        region = "NA"
-        if len(params) > 0:
-            region = params[0]
-            if region not in REGIONS.keys():
-                raise SlashBotValueError("{} unknown region {}".format(sender.mention, region))
+            self.response = "```py\n{}\n```".format(masteries_summary)
 
-        free_champions = api.get_all_champions(region=REGIONS[region], free_to_play=True)["champions"]
-        free_champions = [
-            "• {name}, {title}".format(
-                name=CHAMPIONS["data"][str(x["id"])]["name"],
-                title=CHAMPIONS["data"][str(x["id"])]["title"],
-            ) for x in free_champions
-        ]
+    class FreeChampionRotation(LeagueOfLegendsCommand):
+        command = "freechamps"
+        aliases = ["fc", ]
 
-        free_champions_summary = "\n".join(free_champions)
-        free_champions_summary = "Free champions for {region}:\n```py\n{champions}\n```".format(
-            region=REGION_NAMES[region.lower()],
-            champions=free_champions_summary
-        )
+        @overrides(Command)
+        async def make_response(self):
+            region = "NA"
+            if len(params) > 0:
+                region = params[0]
+                if region not in REGIONS.keys():
+                    raise SlashBotValueError("{} unknown region {}".format(sender.mention, region))
 
-        return free_champions_summary
+            free_champions = api.get_all_champions(region=REGIONS[region], free_to_play=True)["champions"]
+            free_champions = [
+                "• {name}, {title}".format(
+                    name=CHAMPIONS["data"][str(x["id"])]["name"],
+                    title=CHAMPIONS["data"][str(x["id"])]["title"],
+                ) for x in free_champions
+            ]
 
+            free_champions_summary = "\n".join(free_champions)
+            free_champions_summary = "Free champions for {region}:\n```py\n{champions}\n```".format(
+                region=REGION_NAMES[region.lower()],
+                champions=free_champions_summary
+            )
 
-def refresh_static_data(key="ALL"):
-    """Refreshes all static LoL data
-
-    Retrieves static data for champions, masteries, runes and summoner spells and assigns them to their
-    respective global variables if they haven't been initialised yet or `key` includes them.
-
-    Args:
-        key (str): Valid values are the names of any of the static variables or "ALL"
-
-    """
-    global CHAMPIONS
-    global MASTERIES
-    global RUNES
-    global SUMMONER_SPELLS
-
-    if CHAMPIONS is None or key in ["CHAMPIONS", "ALL"]:
-        CHAMPIONS = api.static_get_champion_list(region=riotwatcher.NORTH_AMERICA, data_by_id=True, champ_data="all")
-        logger.debug("Collected {} champions".format(len(CHAMPIONS["data"])))
-
-    if MASTERIES is None or key in ["MASTERIES", "ALL"]:
-        MASTERIES = api.static_get_mastery_list(region=riotwatcher.NORTH_AMERICA, mastery_list_data="all")
-        logger.debug("Collected {} masteries".format(len(MASTERIES["data"])))
-
-    if RUNES is None or key in ["RUNES", "ALL"]:
-        RUNES = api.static_get_rune_list(region=riotwatcher.NORTH_AMERICA, rune_list_data="all")
-        logger.debug("Collected {} runes".format(len(RUNES["data"])))
-
-    if SUMMONER_SPELLS is None or key in ["SUMMONER_SPELLS", "ALL"]:
-        SUMMONER_SPELLS = api.static_get_summoner_spell_list(region=riotwatcher.NORTH_AMERICA, spell_data="all")
-        logger.debug("Collected {} summoner spells".format(len(SUMMONER_SPELLS["data"])))
-
-
-def refresh_champion_assets(champion_name=None):
-    """Refreshes champion icons
-
-    If `champion_name` is not given, the method loads any missing icons.
-
-    Args:
-        champion_name (str): If given, reloads icon regardless of whether it already exists
-
-    Raises:
-        ValueError: If champion name is given and it is not a valid champion
-
-    """
-    if champion_name is not None:
-        if champion_name not in [x[name] for x in CHAMPIONS["data"]]:
-            raise ValueError("{} is not a valid champion".format(champion_name))
-        AssetStore.store(api.get_champion_icon(champion_name=champion_name))
-
-    for id_, data in CHAMPIONS["data"].items():
-        try:
-            AssetStore.get("lol/icons/champions/{}".format(id_))
-        except AssetsError:
-            AssetStore.store(api.get_champion_icon(champion_name=data["image"]["full"]))
+            return free_champions_summary
 
 
 def get_summoner_info(discord_user, params):
