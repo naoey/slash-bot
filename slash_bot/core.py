@@ -344,6 +344,9 @@ class Stats(object):
             if attr.startswith("__") or attr.endswith("__"):
                 continue
 
+            if type(val) == datetime.datetime:
+                val = val.strftime("%Y-%m-%D %H:%M:%S")
+
             serial[attr] = val
 
         return serial
