@@ -261,8 +261,16 @@ class SlashBot(discord.Client):
     """
     Discord event responders
     """
-    async def send_message(self, message, channel):
-        await super().send_message(channel, message)
+    async def send_message(self, message, channel, chunk=False):
+        if len(message) >= 2000 or chunk:
+            if Command.response_chunk_marker in message:
+                messages = message.split(Command.response_chunk_marker)
+            else:
+                messages = (string[0 + i: length + i] for i in range(0, len(message), 1999))
+            for msg in messages:
+                await super().send_message(channel, msg)
+        else:
+            await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
 
     async def send_error(self, error, channel):

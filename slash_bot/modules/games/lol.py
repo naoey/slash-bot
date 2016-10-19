@@ -638,22 +638,29 @@ class LeagueOfLegendsFunctions(object):
                         red_team.append(player)
 
                 summary = (
+                    "```py\n"
                     "Game type: {mode}\n"
                     "Game duration: {duration}\n"
                     "Game start time: {start_time}\n"
-                    "#$$#"
+                    "```"
+                    "{chunk}"
+                    "```py\n"
                     "--------------\n"
                     "RED TEAM\n"
                     "--------------\n"
                     "Bans: {red_team_bans}\n"
                     '{red_team}\n'
-                    "#$$#"
+                    "```\n"
+                    "{chunk}"
+                    "```py\n"
                     "--------------\n"
                     "BLUE TEAM\n"
                     "--------------\n"
                     "Bans: {blue_team_bans}\n"
                     "{blue_team}"
+                    "```"
                 ).format(
+                    chunk=self.response_chunk_marker,
                     mode=game["gameMode"].title(),
                     duration=time.strftime("%M:%S", time.gmtime(game["gameLength"])),
                     start_time=datetime.datetime.fromtimestamp(
