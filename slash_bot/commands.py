@@ -91,23 +91,20 @@ class Command(object):
             PermissionError: If the user who invoked the command doesn't have the necessary permissions or roles
 
         """
-        found_role_permission = False
-        if len(self.required_roles) > 0:
-            for each in self.required_roles:
-                if Permissions.can(self.source_channel, self.invoker, role=each):
-                    found_role_permission = True
-                    break
+        # found_role_permission = False if len(self.required_roles) > 0 else True
+        # for each in self.required_roles:
+        #     if Permissions.can(self.source_channel, self.invoker, role=each):
+        #         found_role_permission = True
+        #         break
 
-        found_permission = False
-        if len(self.required_permissions) > 0:
-            for each in self.required_permissions:
-                if Permissions.can(self.source_channel, self.invoker, permission=each):
-                    found_permission = True
-                    break
+        found_permission = False if len(self.required_permissions) > 0 else True
+        for each in self.required_permissions:
+            if Permissions.can(self.source_channel, self.invoker, permission=each):
+                found_permission = True
+                break
 
-        if ((len(self.required_roles) > 0 and not found_role_permission) and
-                (len(self.required_permissions) > 0 and not found_permission)):
-            raise BotPermissionError("You don't have the necessary permission!")
+        if not found_permission:
+            raise BotPermissionError("You don't have the necessary permission!", mention=self.invoker.mention)
 
     async def respond(self, callback):
         """Called by the bot to send the response when it is ready to."""
