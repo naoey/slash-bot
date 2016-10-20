@@ -184,10 +184,9 @@ class SlashBot(discord.Client):
                         await self.send_typing(message.channel)
                         await command.make_response()
                         response_channel = partial(self.send_message, channel=message.channel)
-                        self.send_message
                         await command.respond(response_channel)
                 except errors.SlashBotPermissionError as pe:
-                    await self.send_error("{} {}".format(message.author.mention, pe), message.channel)
+                    await self.send_error(pe, message.channel)
                 except errors.SlashBotError as sbe:
                     await self.send_error(sbe, message.channel)
                 except Exception as e:
