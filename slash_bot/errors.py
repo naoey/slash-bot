@@ -40,5 +40,13 @@ class CommandDefinitionError(SlashBotError):
     pass
 
 
-class BotPermissionError(SlashBotError):
+class SlashBotPermissionError(SlashBotError):
+    pass
+
+
+class BotPermissionError(SlashBotPermissionError):
+    pass
+
+
+class DiscordPermissionError(SlashBotPermissionError):
     pass
