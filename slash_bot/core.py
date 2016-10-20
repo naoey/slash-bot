@@ -77,6 +77,8 @@ class SlashBot(discord.Client):
 
         config.GLOBAL["bot"] = self
 
+        self._channel_message_subscriptions = {}
+
         # discord_logger = DiscordLogHandler()
         # discord_logger.setLevel(logging.INFO)
         # discord_logger.setFormatter(logging.Formatter("%(message)s"))
@@ -164,6 +166,10 @@ class SlashBot(discord.Client):
         await self.activate_modules()
 
     async def on_message(self, message):
+        if message.channel.id in self._channel_message_subscriptions.keys():
+            for each in self._channel_message_subscriptions[message.channel.id].values():
+                await each(message=message)
+
         if message.content.startswith(config.BOT_PREFIX):
             config.STATS.PREFIXED_MESSAGES_RECEIVED += 1
 
@@ -180,7 +186,7 @@ class SlashBot(discord.Client):
                         response_channel = partial(self.send_message, channel=message.channel)
                         self.send_message
                         await command.respond(response_channel)
-                except errors.BotPermissionError as pe:
+                except errors.SlashBotPermissionError as pe:
                     await self.send_error("{} {}".format(message.author.mention, pe), message.channel)
                 except errors.SlashBotError as sbe:
                     await self.send_error(sbe, message.channel)
@@ -273,12 +279,41 @@ class SlashBot(discord.Client):
             await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
 
+    async def send_shortlived_message(self, message, channel, duration=5):
+        """Send a message that gets deleted after `duration` number of seconds."""
+        pass
+
     async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
         if error.to_be_mentioned is not None:
             await super().send_message(channel, "{}\n🚫 **Error:** {}".format(error.to_be_mentioned, error))
         else:
             await super().send_message(channel, "🚫 **Error:** {}".format(error))
+
+    """
+    Subscriptions
+    """
+    def subscribe_channel_messages(self, channel_id, callback):
+        if channel_id not in self._channel_message_subscriptions.keys():
+            self._channel_message_subscriptions[channel_id] = {}
+
+        token = channel_id + "_" + random_string()
+        while token in self._channel_message_subscriptions[channel_id].keys():
+            token = channel_id + "_" + random_string()
+
+        if callable(callback) and channel_id is not None:
+            if channel_id in self._channel_message_subscriptions.keys():
+                self._channel_message_subscriptions[channel_id][token] = callback
+
+        return token
+
+    def unsubscribe_channel_messages(self, token):
+        channel = token.split("_")[0]
+        if channel in self._channel_message_subscriptions.keys():
+            try:
+                del self._channel_message_subscriptions[channel][token]
+            except KeyError:
+                logging.error("Just tried unsubscribing a non-existent subscription to channel messages")
 
     """
     Destruction

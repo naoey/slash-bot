@@ -8,6 +8,8 @@ Created on 2016-08-23
 import logging
 import sys
 import linecache
+import random
+import string
 
 
 def PrintException():
@@ -25,3 +27,7 @@ def overrides(interface_class):
         assert(method.__name__ in dir(interface_class))
         return method
     return overrider
+
+
+def random_string(size=6):
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(size))
