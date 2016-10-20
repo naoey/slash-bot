@@ -156,3 +156,5 @@ class Permissions(object):
             return role_permission and user.id == config.GLOBAL["discord"]["owner_id"]
         if permission == Permissions.SERVER_OWNER:
             return role_permission and user.id == channel.server.owner.id
+        if permission == Permissions.SERVER_ADMIN:
+            return role_permission and user.permissions_in(channel).administrator
