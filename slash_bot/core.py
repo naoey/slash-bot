@@ -186,7 +186,7 @@ class SlashBot(discord.Client):
                         response_channel = partial(self.send_message, channel=message.channel)
                         self.send_message
                         await command.respond(response_channel)
-                except errors.BotPermissionError as pe:
+                except errors.SlashBotPermissionError as pe:
                     await self.send_error("{} {}".format(message.author.mention, pe), message.channel)
                 except errors.SlashBotError as sbe:
                     await self.send_error(sbe, message.channel)
@@ -278,6 +278,10 @@ class SlashBot(discord.Client):
         else:
             await super().send_message(channel, message)
         config.STATS.MESSAGES_SENT += 1
+
+    async def send_shortlived_message(self, message, channel, duration=5):
+        """Send a message that gets deleted after `duration` number of seconds."""
+        pass
 
     async def send_error(self, error, channel):
         config.STATS.ERRORS += 1
