@@ -41,7 +41,9 @@ class CommandDefinitionError(SlashBotError):
 
 
 class SlashBotPermissionError(SlashBotError):
-    pass
+    def __init__(self, message, mention=None, silent=False):
+        super().__init__(message, mention)
+        self.silent = silent
 
 
 class BotPermissionError(SlashBotPermissionError):

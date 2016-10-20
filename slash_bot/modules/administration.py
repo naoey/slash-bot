@@ -94,6 +94,7 @@ class SlowMode(Command):
     @overrides(Command)
     async def make_response(self):
         await super().make_response()
+
         if not self.source_channel.server.get_member(BOT.user.id).permissions_in(self.source_channel).manage_messages:
             self.response = "{} Gib me permission to manage messages here!".format(self.invoker.mention)
             return

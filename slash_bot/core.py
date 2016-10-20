@@ -181,12 +181,14 @@ class SlashBot(discord.Client):
                 try:
                     command = await self.commands_map[command].create_command(message)
                     if command is not None:
-                        await self.send_typing(message.channel)
+                        if not command.silent_permissions:
+                            await self.send_typing(message.channel)
                         await command.make_response()
                         response_channel = partial(self.send_message, channel=message.channel)
                         await command.respond(response_channel)
                 except errors.SlashBotPermissionError as pe:
-                    await self.send_error(pe, message.channel)
+                    if not pe.silent:
+                        await self.send_error(pe, message.channel)
                 except errors.SlashBotError as sbe:
                     await self.send_error(sbe, message.channel)
                 except Exception as e:
@@ -365,6 +367,17 @@ class CoreFunctions(object):
                 voice_channels=config.STATS.VOICE_CHANNELS,
                 errors=config.STATS.ERRORS,
             )
+
+    class InviteLink(Command):
+        command = "invite"
+        aliases = ["inv", "invitelink", "add", "addlink", ]
+        required_permissions = [Permissions.BOT_OWNER, ]
+        silent_permissions = True
+
+        @overrides(Command)
+        async def make_response(self):
+            await super().make_response()
+            self.response = config.GLOBAL["discord"]["invite_link"]
 
 
 class Stats(object):

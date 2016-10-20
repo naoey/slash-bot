@@ -32,6 +32,7 @@ class Command(object):
     aliases = []
     required_permissions = []
     required_roles = []
+    silent_permissions = False
 
     def __init__(self, message):
         """Don't do this. Use `create_command()` instead.
@@ -104,7 +105,11 @@ class Command(object):
                 break
 
         if not found_permission:
-            raise BotPermissionError("You don't have the necessary permission!", mention=self.invoker.mention)
+            raise BotPermissionError(
+                "You don't have the necessary permission!",
+                mention=self.invoker.mention,
+                silent=self.silent_permissions
+            )
 
     async def respond(self, callback):
         """Called by the bot to send the response when it is ready to."""
