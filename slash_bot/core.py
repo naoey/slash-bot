@@ -167,8 +167,8 @@ class SlashBot(discord.Client):
 
     async def on_message(self, message):
         if message.channel.id in self._channel_message_subscriptions.keys():
-            for each in self._channel_message_subscriptions[message.channel.id]:
-                await each["callback"](message=message)
+            for each in self._channel_message_subscriptions[message.channel.id].values():
+                await each(message=message)
 
         if message.content.startswith(config.BOT_PREFIX):
             config.STATS.PREFIXED_MESSAGES_RECEIVED += 1
@@ -290,34 +290,27 @@ class SlashBot(discord.Client):
     Subscriptions
     """
     def subscribe_channel_messages(self, channel_id, callback):
+        if channel_id not in self._channel_message_subscriptions.keys():
+            self._channel_message_subscriptions[channel_id] = {}
+
         token = channel_id + "_" + random_string()
-        while token in self._channel_message_subscriptions.keys():
+        while token in self._channel_message_subscriptions[channel_id].keys():
             token = channel_id + "_" + random_string()
 
         if callable(callback) and channel_id is not None:
             if channel_id in self._channel_message_subscriptions.keys():
-                self._channel_message_subscriptions[channel_id].append({
-                    "token": token,
-                    "callback": callback,
-                })
-            else:
-                self._channel_message_subscriptions[channel_id] = [{
-                    "token": token,
-                    "callback": callback,
-                }, ]
+                self._channel_message_subscriptions[channel_id][token] = callback
 
         return token
 
     def unsubscribe_channel_messages(self, token):
-        if token is None:
-            return
+        channel = token.split("_")[0]
+        if channel in self._channel_message_subscriptions.keys():
+            try:
+                del self._channel_message_subscriptions[channel][token]
+            except KeyError:
+                logging.error("Just tried unsubscribing a non-existent subscription to channel messages")
 
-        try:
-            subscription = self._channel_message_subscriptions[token.split("_")[0]]
-            subscription = next((x for x in subscription if x["token"] == token))
-            del subscription
-        except Exception as e:
-            raise
     """
     Destruction
     """
