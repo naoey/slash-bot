@@ -157,6 +157,8 @@ class SlashBot(discord.Client):
 
         config.STATS = Stats()
 
+        await self.change_status(game=discord.Game(name=config.DISCORD_STATUS_ITER[0]))
+
         for server in self.servers:
             await self.on_server_join(server)
 

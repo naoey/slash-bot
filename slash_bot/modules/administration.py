@@ -129,7 +129,9 @@ class SlowMode(Command):
                     return
 
                 uid = self.params[0][2:-1]
-                user = next((x for x in self._raw_message.mentions if x.id == uid))
+                if uid.startswith("!"):     # For discord silliness with mentioning users with nicknames
+                    uid = uid[1:]
+                user = next((x for x in self._raw_message.mentions if x.id == uid), None)
                 slowid = self.source_channel.id + "_" + uid
 
                 if slowid in _alive_listeners.keys():
@@ -140,7 +142,7 @@ class SlowMode(Command):
                         self.source_channel,
                         user={
                             "id": uid,
-                            "name": user.name,
+                            "name": user.name if user is not None else "",
                         },
                         slowed_by=self.invoker.id,
                     )
@@ -152,7 +154,9 @@ class SlowMode(Command):
                 return
 
             uid = self.params[0][2:-1]
-            user = next((x for x in self._raw_message.mentions if x.id == uid))
+            if uid.startswith("!"):
+                uid = uid[1:]
+            user = next((x for x in self._raw_message.mentions if x.id == uid), None)
             slowid = self.source_channel.id + "_" + uid
 
             if slowid in _alive_listeners.keys():
@@ -164,7 +168,7 @@ class SlowMode(Command):
                     interval=self.params[1],
                     user={
                         "id": uid,
-                        "name": user.name,
+                        "name": user.name if user is not None else "",
                     },
                     slowed_by=self.invoker.id,
                 )

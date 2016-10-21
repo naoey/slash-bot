@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 
 BOT_PREFIX = ","
 
@@ -65,6 +65,7 @@ GLOBAL = {
 
 }
 
+STATUS_CHANGE_INTERVAL = 60
 DISCORD_STATUS_ITER = [
     "procrastination \(^-^)/",
 ]

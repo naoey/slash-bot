@@ -59,8 +59,8 @@ class RiotUser(SlashBotDatabase):
     summoner_level = IntegerField(null=True)
     user = ForeignKeyField(User, related_name="riotusers")
     date_registered = DateField(help_text="Date this username was registered with the bot")
-    server_registered = ForeignKeyField(Server, related_name="registration_server")
-    channel_registered = ForeignKeyField(Channel, related_name="channel_registered")
+    server_registered = ForeignKeyField(Server, related_name="riotuser_registered_server")
+    channel_registered = ForeignKeyField(Channel, related_name="riotuser_registered_channel")
     last_update_data = TextField(null=True)
     last_updated = DateTimeField(null=True)
 
