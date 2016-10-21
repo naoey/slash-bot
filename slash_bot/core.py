@@ -63,9 +63,6 @@ logging.config.dictConfig(LOG_CONFIG)
 
 
 class SlashBot(discord.Client):
-
-    _module_handler_prefix = "cmd_"
-
     """
     Bot setup handlers
     """

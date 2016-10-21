@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 BOT = config.GLOBAL["bot"]
 
-_alive_listeners = {}
+_alive_slowers = {}
 
 
 class SlowMode(Command):
@@ -32,7 +32,7 @@ class SlowMode(Command):
     def __init__(self, message):
         super().__init__(message)
 
-        for key in _alive_listeners.keys():
+        for key in _alive_slowers.keys():
             if "_" in key and key.split("_")[1] == self.invoker.id:
                 # This user is being slowed, make permissions silent on this command to prevent proxy spam through bot
                 self.silent_permissions = True
@@ -52,9 +52,9 @@ class SlowMode(Command):
             self.enabled = True
 
             if self.slowid is not None:
-                _alive_listeners[self.slowid] = self
+                _alive_slowers[self.slowid] = self
             else:
-                _alive_listeners[self.channel.id] = self
+                _alive_slowers[self.channel.id] = self
 
         async def clean(self, message):
             if not self.enabled:
@@ -96,9 +96,9 @@ class SlowMode(Command):
             self.enabled = False
             BOT.unsubscribe_channel_messages(self._subscription)
             if self.slowid is not None:
-                del _alive_listeners[self.slowid]
+                del _alive_slowers[self.slowid]
             else:
-                del _alive_listeners[self.channel.id]
+                del _alive_slowers[self.channel.id]
 
     @overrides(Command)
     async def make_response(self):
@@ -109,12 +109,12 @@ class SlowMode(Command):
             return
 
         if len(self.params) == 0:
-            if self.source_channel.id in _alive_listeners.keys():
-                await _alive_listeners[self.source_channel.id].end()
+            if self.source_channel.id in _alive_slowers.keys():
+                await _alive_slowers[self.source_channel.id].end()
                 self.response = "Slow mode disabled, spemmmm!"
             else:
                 existing_user_slows = []
-                for key, value in _alive_listeners.items():
+                for key, value in _alive_slowers.items():
                     if key.split("_")[0] == self.source_channel.id:
                         existing_user_slows.append(value)
                 for each in existing_user_slows:
@@ -125,15 +125,15 @@ class SlowMode(Command):
 
         elif len(self.params) == 1:
             if self.params[0].isdigit():
-                if self.source_channel.id in _alive_listeners.keys():
-                    await _alive_listeners[self.source_channel.id].end()
+                if self.source_channel.id in _alive_slowers.keys():
+                    await _alive_slowers[self.source_channel.id].end()
                     self.response = "Slow mode disabled, spemmmm!"
                 else:
                     SlowMode.Slower(self.source_channel, self.params[0], slowed_by=self.invoker.id)
                     self.response = "Slow mode enabled, spam limited to once every {} second(s)".format(self.params[0])
 
             elif self.params[0].startswith("<@"):
-                if self.source_channel.id in _alive_listeners.keys():
+                if self.source_channel.id in _alive_slowers.keys():
                     self.response = "The whole channel is slowed already! Disable it to slow per-user."
                     return
 
@@ -141,8 +141,8 @@ class SlowMode(Command):
                 user = next((x for x in self._raw_message.mentions if x.id == uid), None)
                 slowid = self.source_channel.id + "_" + uid
 
-                if slowid in _alive_listeners.keys():
-                    await _alive_listeners[slowid].end()
+                if slowid in _alive_slowers.keys():
+                    await _alive_slowers[slowid].end()
                     self.response = "{} is now free to spam again".format(user.name)
                 else:
                     SlowMode.Slower(
@@ -156,7 +156,7 @@ class SlowMode(Command):
                     self.response = "{} is now being spam-limited".format(user.name)
 
         elif len(self.params) == 2 and self.params[0].startswith("<@") and self.params[1].isdigit():
-            if self.source_channel.id in _alive_listeners.keys():
+            if self.source_channel.id in _alive_slowers.keys():
                 self.response = "{} the whole channel is slowed already! Disable it to slow per-user.".format(self.invoker.mention)
                 return
 
@@ -164,8 +164,8 @@ class SlowMode(Command):
             user = next((x for x in self._raw_message.mentions if x.id == uid), None)
             slowid = self.source_channel.id + "_" + uid
 
-            if slowid in _alive_listeners.keys():
-                await _alive_listeners[slowid].end()
+            if slowid in _alive_slowers.keys():
+                await _alive_slowers[slowid].end()
                 self.response = "{} is now free to spam again".format(user.name)
             else:
                 SlowMode.Slower(
@@ -181,3 +181,34 @@ class SlowMode(Command):
 
         else:
             self.response = "Bad command"
+
+
+class SlowList(Command):
+    command = "slowlist"
+    aliases = ["sl", "sml", ]
+    silent_permissions = True
+
+    @overrides(Command)
+    async def make_response(self):
+        slowed_users = {}
+        for key, val in _alive_slowers.items():
+            if "_" in key and key.split("_")[0] == self.source_channel.id:
+                slowed_users[val.user] = {
+                    "name": val.uname,
+                    "timeout": val.interval,
+                }
+
+        if self.invoker.id in slowed_users.keys() and not Permissions.can(self.source_channel, self.invoker, Permissions.SERVER_ADMIN):
+            self.response = None
+            return
+        else:
+            if self.source_channel.id in _alive_slowers.keys():
+                self.response = "The whole channel is being slowed"
+            elif len(slowed_users) == 0:
+                self.response = "Slowmode is disabled on this channel"
+            else:
+                users = ""
+                for each in slowed_users.values():
+                    users += "• {} - {} seconds\n".format(each["name"], each["timeout"])
+
+                self.response = "Users currently in slow mode on this channel:\n```py\n{}\n```".format(users)
