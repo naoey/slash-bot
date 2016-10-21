@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.2.4"
+VERSION = "0.2.5"
 
 BOT_PREFIX = ","
 
@@ -18,6 +18,10 @@ PATHS = {
     "rito_creds": "./../private/rito.json",
 
     "assets": "./../assets/",
+}
+
+URIS = {
+    "github": "https://github.com/naoey/slash-bot",
 }
 
 MODULES = {

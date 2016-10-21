@@ -29,6 +29,14 @@ class SlowMode(Command):
     aliases = ["sm", ]
     required_permissions = [Permissions.SERVER_ADMIN, ]
 
+    def __init__(self, message):
+        super().__init__(message)
+
+        for key in _alive_listeners.keys():
+            if "_" in key and key.split("_")[1] == self.invoker.id:
+                # This user is being slowed, make permissions silent on this command to prevent proxy spam through bot
+                self.silent_permissions = True
+
     class Slower(object):
         def __init__(self, channel=None, interval=5, user=None, slowed_by=None):
             self.interval = int(interval)
@@ -70,6 +78,7 @@ class SlowMode(Command):
                     if message.author.id != self.user:
                         return
                 if message.channel.id == self.channel.id and message.author.id != config.GLOBAL["discord"]["bot_id"]:
+
                     try:
                         await BOT.delete_message(message)
                     except Forbidden:
