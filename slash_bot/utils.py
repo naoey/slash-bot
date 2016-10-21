@@ -31,3 +31,11 @@ def overrides(interface_class):
 
 def random_string(size=6):
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(size))
+
+
+def uid_from_mention(mention):
+    uid = mention[2:-1]
+    if uid.startswith("!"):
+        # Discord silliness for users with nicknames
+        uid = uid[1:]
+    return uid

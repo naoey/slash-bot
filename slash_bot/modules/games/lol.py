@@ -802,7 +802,7 @@ def get_summoner_info(discord_user, params):
                 )
 
         elif len(params) == 1 and params[0].startswith("<@"):
-            uid = params[0][1:-1][1:]
+            uid = uid_from_mention(params[0])
 
             try:
                 riotuser = RiotUser.get(user=uid)

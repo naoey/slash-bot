@@ -128,9 +128,7 @@ class SlowMode(Command):
                     self.response = "The whole channel is slowed already! Disable it to slow per-user."
                     return
 
-                uid = self.params[0][2:-1]
-                if uid.startswith("!"):     # For discord silliness with mentioning users with nicknames
-                    uid = uid[1:]
+                uid = uid_from_mention(self.params[0])
                 user = next((x for x in self._raw_message.mentions if x.id == uid), None)
                 slowid = self.source_channel.id + "_" + uid
 
@@ -153,9 +151,7 @@ class SlowMode(Command):
                 self.response = "{} the whole channel is slowed already! Disable it to slow per-user.".format(self.invoker.mention)
                 return
 
-            uid = self.params[0][2:-1]
-            if uid.startswith("!"):
-                uid = uid[1:]
+            uid = uid_from_mention(self.params[0])
             user = next((x for x in self._raw_message.mentions if x.id == uid), None)
             slowid = self.source_channel.id + "_" + uid
 
