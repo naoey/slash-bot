@@ -80,8 +80,8 @@ class SlowMode(Command):
                         await self.end()
                     except NotFound:
                         pass
-
-            self.last_message_time = message.timestamp
+            else:
+                self.last_message_time = message.timestamp
 
         async def end(self):
             self.enabled = False
