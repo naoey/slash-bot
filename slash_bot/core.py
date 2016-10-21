@@ -85,7 +85,7 @@ class SlashBot(discord.Client):
         # logging.addHandler(discord_logger)
 
     def run(self):
-        super().run(config.GLOBAL["discord"]["beta_token"])
+        super().run(config.GLOBAL["discord"]["token"])
 
     def log(self, msg):
         self.send_message(config.GLOBAL["discord"]["log_channel_id"])
