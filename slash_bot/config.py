@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 
 BOT_PREFIX = ","
 
