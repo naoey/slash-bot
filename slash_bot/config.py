@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.2.6"
+VERSION = "0.2.7"
 
 BOT_PREFIX = ","
 
@@ -27,6 +27,11 @@ URIS = {
 MODULES = {
     "Administration": {
         "location": "administration",
+        "active": False,
+        "config": {},
+    },
+    "Management": {
+        "location": "management",
         "active": True,
         "config": {},
     },
