@@ -21,8 +21,6 @@ from models import *
 from commands import *
 from utils import *
 
-BOT = config.GLOBAL["bot"]
-
 api = None
 
 _API_KEY = None
@@ -355,7 +353,7 @@ class LeagueOfLegendsFunctions(object):
             except SlashBotValueError as e:
                 raise SlashBotValueError(str(e), mention=self.invoker.mention)
 
-            user = User.get_or_create(user_id=self.invoker.id, defaults={
+            User.get_or_create(user_id=self.invoker.id, defaults={
                 "user_id": self.invoker.id,
                 "user_name": self.invoker.name,
             })[0]
@@ -363,7 +361,7 @@ class LeagueOfLegendsFunctions(object):
             new_data = {
                 "summoner_name": summoner,
                 "region": region,
-                "user": user.user_id,
+                "discord_user": self.invoker.id,
                 "date_registered": datetime.datetime.now(),
                 "server_registered": self.invoker.server.id,
                 "channel_registered": self.source_channel.id,
@@ -371,7 +369,7 @@ class LeagueOfLegendsFunctions(object):
                 "last_updated": None,
             }
 
-            riotuser, created = RiotUser.get_or_create(defaults=new_data, user=self.invoker.id, region=region)
+            riotuser, created = RiotUser.get_or_create(defaults=new_data, discord_user=self.invoker.id, region=region)
 
             if not created:
                 for field, value in new_data.items():
@@ -403,7 +401,8 @@ class LeagueOfLegendsFunctions(object):
             if local_summoner["last_updated"] is not None and (
                 datetime.datetime.now() - local_summoner["last_updated"]
             ).total_seconds() / 60 < 5:
-                return json.loads(local_summoner["last_update_data"])
+                self.response = json.loads(local_summoner["last_update_data"])
+                return
 
             summoner = api.get_summoner(_id=local_summoner["id"], region=local_summoner["region"])
 
@@ -786,7 +785,7 @@ def get_summoner_info(discord_user, params):
         if len(params) == 0:
             uid = discord_user.id
             try:
-                riotuser = RiotUser.get(user=uid)
+                riotuser = RiotUser.get(discord_user=uid)
                 summoner = {
                     "name": riotuser.summoner_name,
                     "id": riotuser.summoner_id,
@@ -805,7 +804,7 @@ def get_summoner_info(discord_user, params):
             uid = uid_from_mention(params[0])
 
             try:
-                riotuser = RiotUser.get(user=uid)
+                riotuser = RiotUser.get(discord_user=uid)
                 summoner = {
                     "name": riotuser.summoner_name,
                     "id": riotuser.summoner_id,

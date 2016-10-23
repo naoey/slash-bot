@@ -77,8 +77,8 @@ class SlowMode(Command):
                 if self.user is not None:
                     if message.author.id != self.user:
                         return
-                if message.channel.id == self.channel.id and message.author.id != config.GLOBAL["discord"]["bot_id"]:
 
+                if message.channel.id == self.channel.id and message.author.id != config.GLOBAL["discord"]["bot_id"]:
                     try:
                         await BOT.delete_message(message)
                     except Forbidden:
