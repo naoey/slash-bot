@@ -53,7 +53,7 @@ The bot uses the prefix `,` for all commands. If a module has listed a module pr
 | Command    | Parameters                                      | Description                                                                                    | Bot Permissions | User Permissions |
 |------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------|------------------|
 | `slowmode`, `sm` | Optional `@<discord_user>`, `<interval_in_seconds>`, `@<discord_user> <interval_in_seconds>` | Toggles slow mode in a channel. If no parameters are given, allows only 1 message per 5 seconds in the channel where it is invoked. Slow can be applied to individual users by mentioning them. If users are slowed on a channel and then slow is invoked for the whole channel, the per-user slows will be reset. *Note: Currently slows are reset when the bot is restarted*.      | Manage Messages | Administrator |
-| `slowlist`, 'sl`, `sml` | | Displays a list of users who are currently in slow mode on that channel. Command doesn't respond to users who are in the slow list. | | | |
+| `slowlist`, `sl`, `sml` | | Displays a list of users who are currently in slow mode on that channel. Command doesn't respond to users who are in the slow list. | | | |
 
 #### League of Legends
 
