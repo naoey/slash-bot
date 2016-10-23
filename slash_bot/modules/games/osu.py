@@ -20,6 +20,80 @@ from utils import *
 
 logger = logging.getLogger(__name__)
 
+
+class OsuAPI(object):
+    base_url = 'https://osu.ppy.sh/'
+
+    def __init__(self, api_key=None):
+        if api_key is None:
+            raise ValueError('No API key given')
+
+        self.__api_key = api_key
+
+    class OsuException(Exception):
+        error_403 = "Forbidden"
+        error_404 = "Not found"
+
+    @staticmethod
+    def _raise_status(response):
+        if response.status_code == 403:
+            raise OsuException(OsuException.error_403)
+        elif response.status_code == 404:
+            raise OsuException(OsuException.error_404)
+
+    async def _base_request(self, url, **kwargs):
+        params = {
+            'k': self.__api_key
+        }
+        for each in kwargs:
+            params[each] = kwargs[each]
+        r = requests.get(url=self.base_url + url, params=params)
+        self._raise_status(r)
+        return r.json()
+
+    async def beatmaps(self, **kwargs):
+        return await self._base_request(
+            'api/get_beatmaps',
+            **kwargs
+        )
+
+    async def user(self, **kwargs):
+        return await self._base_request(
+            'api/get_user',
+            **kwargs
+        )
+
+    async def get_scores(self, **kwargs):
+        return await self._base_request(
+            'api/get_scores',
+            **kwargs
+        )
+
+    async def get_user_best(self, **kwargs):
+        return await self._base_request(
+            'api/get_user_best',
+            **kwargs
+        )
+
+    async def get_user_recent(self, **kwargs):
+        return await self._base_request(
+            'api/get_user_recent',
+            **kwargs
+        )
+
+    async def get_match(self, **kwargs):
+        return await self._base_request(
+            'api/get_match',
+            **kwargs
+        )
+
+    async def get_replay(self, **kwargs):
+        return await self._base_request(
+            'api/get_replay',
+            **kwargs
+        )
+
+
 _API_KEY = None
 _api = None
 if _API_KEY is None:
@@ -124,22 +198,40 @@ class OsuFunctions(object):
         async def make_response(self):
             await super().make_response()
 
-            self.response = "User info goes here"
-
-
-class OsuAPI(object):
-    base_url = "https://osu.ppy.sh/"
-
-    def __init__(self, api_key=None):
-        if api_key is None:
-            raise ValueError("No API key given")
-
-        self.__api_key = api_key
-
-    @staticmethod
-    def _raise_status(response):
-
-
-    def _base_request(self, url, **kwargs):
-        params = {k: v for k, v kwargs.items()}
-        r = requests.get(url=self.base_url + url, params=params)
+            r = await _api.user(u="naoey", type="string")
+            r = r[0]
+            best_r = await _api.get_user_best(u="naoey", type="string", limit=1)
+            best_r = best_r[0]
+            best_beatmap_r = await _api.beatmaps(b=best_r["beatmap_id"], limit=1)
+            best_beatmap_r = best_beatmap_r[0]
+            self.response = (
+                "{profile_url}\n"
+                "{avatar_url}\n"
+                "```\n"
+                "User: {user_name}\n"
+                "Rank: #{global_rank}, #{country_rank} {country}\n"
+                "Performance: {pp} pp\n"
+                "Accuracy: {acc}%\n"
+                "Best play: {best_map}, {best_pp} pp\n"
+                "Plays: {total_plays}, Score: {total_score}, Hits: {total_hits}\n"
+                "```"
+            ).format(
+                user_name=r["username"],
+                global_rank=r["pp_rank"],
+                country_rank=r["pp_country_rank"],
+                country=r["country"],
+                pp=r["pp_raw"],
+                acc=round(float(r["accuracy"]), 2),
+                best_map="{artist} - {name} [{version}] {stars} stars".format(
+                    artist=best_beatmap_r["artist"],
+                    name=best_beatmap_r["title"],
+                    version=best_beatmap_r["version"],
+                    stars=round(float(best_beatmap_r["difficultyrating"]), 2)
+                ),
+                best_pp=best_r["pp"],
+                total_plays=r["playcount"],
+                total_score=r["total_score"],
+                total_hits=0,
+                profile_url="https://osu.ppy.sh/u/{}".format(r["user_id"]),
+                avatar_url="https://a.ppy.sh/{}".format(r["user_id"]),
+            )

@@ -272,7 +272,7 @@ class SlashBot(discord.Client):
             if Command.response_chunk_marker in message:
                 messages = message.split(Command.response_chunk_marker)
             else:
-                messages = (string[0 + i: length + i] for i in range(0, len(message), 1999))
+                messages = (message[0 + i: 1999 + i] for i in range(0, len(message), 1999))
             for msg in messages:
                 await super().send_message(channel, msg)
         else:
