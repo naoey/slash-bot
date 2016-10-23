@@ -119,7 +119,7 @@ class OsuCommand(Command):
                         self.subcommands_map[each] = cmd
 
     def get_delegate_command(self):
-        if len(self.params) == 0:
+        if len(self.params) == 0 or (len(self.params) > 0 and self.params[0] not in self.subcommands_map.keys()):
             return OsuFunctions.UserInfo(self._raw_message)
         if len(self.params) > 0 and self.params[0] in self.subcommands_map.keys():
             return self.subcommands_map[self.params[0]](self._raw_message)
@@ -198,9 +198,36 @@ class OsuFunctions(object):
         async def make_response(self):
             await super().make_response()
 
-            r = await _api.user(u="naoey", type="string")
+            if len(self.params) == 0:
+                try:
+                    osuuser = OsuUser.get(discord_user=self.invoker.id)
+                    username = osuuser.userid if osuuser.userid is not None else osuuser.username
+                    usertype = "id" if osuuser.userid is not None else "string"
+                except OsuUser.DoesNotExist:
+                    username = self.invoker.name
+                    usertype = "string"
+            if len(self.params) == 1:
+                username = self.params[0]
+                usertype = "string"
+            elif len(self.params) == 1 and self.params[0].startswith("<@"):
+                uid = uid_from_mention(self.params[0])
+                try:
+                    osuuser = OsuUser.get(discord_user=uid)
+                    username = osuuser.userid if osuuser.userid is not None else osuuser.username
+                    usertype = "id" if osuuser.userid is not None else "string"
+                except OusUser.DoesNotExist:
+                    username = next((x.name for x in self._raw_message.mentions if x.id == uid))
+                    usertype = "string"
+            else:
+                username = " ".join(self.params)
+                usertype = "string"
+
+            r = await _api.user(u=username, type=usertype)
+            if len(r) < 1:
+                self.response = "Couldn't find a user by name {}".format(username)
+                return
             r = r[0]
-            best_r = await _api.get_user_best(u="naoey", type="string", limit=1)
+            best_r = await _api.get_user_best(u=username, type=usertype, limit=1)
             best_r = best_r[0]
             best_beatmap_r = await _api.beatmaps(b=best_r["beatmap_id"], limit=1)
             best_beatmap_r = best_beatmap_r[0]
@@ -235,3 +262,10 @@ class OsuFunctions(object):
                 profile_url="https://osu.ppy.sh/u/{}".format(r["user_id"]),
                 avatar_url="https://a.ppy.sh/{}".format(r["user_id"]),
             )
+
+    class TopPlays(Command):
+        command = "top"
+
+        @overrides(Command)
+        async def make_response(self):
+            pass
