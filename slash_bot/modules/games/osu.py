@@ -206,7 +206,7 @@ class OsuFunctions(object):
                 except OsuUser.DoesNotExist:
                     username = self.invoker.name
                     usertype = "string"
-            if len(self.params) == 1:
+            elif len(self.params) == 1:
                 username = self.params[0]
                 usertype = "string"
             elif len(self.params) == 1 and self.params[0].startswith("<@"):
