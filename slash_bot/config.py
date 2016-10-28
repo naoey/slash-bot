@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.2.7"
+VERSION = "0.3.0"
 
 BOT_PREFIX = ","
 
@@ -16,6 +16,7 @@ PATHS = {
 
     "discord_creds": "./../private/discord.json",
     "rito_creds": "./../private/rito.json",
+    "osu_creds": "./../private/osu.json",
 
     "assets": "./../assets/",
 }
@@ -48,9 +49,9 @@ MODULES = {
         }
     },
     "osu!": {
-        "location": "games.osu.Osu",
+        "location": "games.osu",
         "class": "Osu",
-        "active": False,
+        "active": True,
         "prefix": "osu",
         "config": {},
     },
