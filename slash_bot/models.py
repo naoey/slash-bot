@@ -92,17 +92,13 @@ class ScheduledCommand(SlashBotDatabase):
 class OsuUser(SlashBotDatabase):
     username = CharField()
     userid = CharField(null=True)
-    discord_user = ForeignKeyField(User, related_name="osuusers")
+    discord_user = ForeignKeyField(User, related_name="osuusers", primary_key=True)
     avatar = TextField(null=True)
     date_registered = DateField(help_text="Date this username was registered with the bot")
     server_registered = ForeignKeyField(Server, related_name="osuuser_registered_server")
     channel_registered = ForeignKeyField(Channel, related_name="osuuser_registered_channel")
     last_update_data = TextField(null=True)
     last_updated = DateTimeField(null=True)
-
-    class Meta:
-        primary_key = CompositeKey("username", "discord_user")
-
 
 db.create_tables([
     User,

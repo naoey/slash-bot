@@ -168,17 +168,16 @@ class OsuFunctions(object):
             osuuser, created = OsuUser.get_or_create(defaults=new_data, discord_user=self.invoker.id)
 
             if not created:
-                for field, value in new_data.items():
-                    if field == "discord_user":
-                        continue
+                discord_user = new_data.pop('discord_user')
+                r = OsuUser.update(**new_data).where(OsuUser.discord_user == discord_user).execute()
 
-                    setattr(osuuser, field, value)
-
-                osuuser.save()
-                self.response = "{sender}\nUpdated your osu! username to {name} 👍".format(
-                    sender=self.invoker.mention,
-                    name=username,
-                )
+                if r == 1:
+                    self.response = "{sender}\nUpdated your osu! username to {name} 👍".format(
+                        sender=self.invoker.mention,
+                        name=username,
+                    )
+                else:
+                    raise SlashBotError("An error occurred while updating your username!")
             else:
                 self.response = "{sender}\nStored your osu! username as {name} 👍".format(
                     sender=self.invoker.mention,
