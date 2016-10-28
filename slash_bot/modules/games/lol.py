@@ -360,6 +360,7 @@ class LeagueOfLegendsFunctions(object):
 
             new_data = {
                 "summoner_name": summoner,
+                "summoner_id": None,
                 "region": region,
                 "discord_user": self.invoker.id,
                 "date_registered": datetime.datetime.now(),
@@ -372,18 +373,17 @@ class LeagueOfLegendsFunctions(object):
             riotuser, created = RiotUser.get_or_create(defaults=new_data, discord_user=self.invoker.id, region=region)
 
             if not created:
-                for field, value in new_data.items():
-                    if field == "user":
-                        continue
+                discord_user = new_data.pop("discord_user")
+                r = RiotUser.update(**new_data).where(RiotUser.discord_user == discord_user).execute()
 
-                    setattr(riotuser, field, value)
-
-                riotuser.save()
-                self.response = "{sender}\nUpdated your LoL username to {name} on region {region} 👍".format(
-                    sender=self.invoker.mention,
-                    name=summoner,
-                    region=REGION_NAMES[region]
-                )
+                if r == 1:
+                    self.response = "{sender}\nUpdated your LoL username to {name} and region {region} 👍".format(
+                        sender=self.invoker.mention,
+                        name=summoner,
+                        region=REGION_NAMES[region]
+                    )
+                else:
+                    raise SlashBotError("An error occurred while updating your username!")
             else:
                 self.response = "{sender}\nStored your LoL name on {region} 👍".format(
                     sender=self.invoker.mention,
@@ -851,7 +851,6 @@ def update_summoner_info(summoner):
             summoner_id=rito_resp["id"],
             summoner_level=rito_resp["summonerLevel"]
         ).where(
-
             (RiotUser.summoner_name == summoner["name"]) & (RiotUser.region == summoner["region"])
         ).execute()
 

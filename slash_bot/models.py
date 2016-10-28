@@ -57,15 +57,12 @@ class RiotUser(SlashBotDatabase):
     summoner_name = CharField()
     region = CharField()
     summoner_level = IntegerField(null=True)
-    discord_user = ForeignKeyField(User, related_name="riotusers")
+    discord_user = ForeignKeyField(User, related_name="riotusers", primary_key=True)
     date_registered = DateField(help_text="Date this username was registered with the bot")
     server_registered = ForeignKeyField(Server, related_name="riotuser_registered_server")
     channel_registered = ForeignKeyField(Channel, related_name="riotuser_registered_channel")
     last_update_data = TextField(null=True)
     last_updated = DateTimeField(null=True)
-
-    class Meta:
-        primary_key = CompositeKey("summoner_name", "region", "discord_user")
 
 
 class RiotStaticData(SlashBotDatabase):

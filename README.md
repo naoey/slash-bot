@@ -70,6 +70,16 @@ Module prefix: `lol`
 
 *Note that all region values must be abbreviated as per Riot's speicification (NA, EUW, EUNE etc.)*
 
+#### osu!
+
+Module prefix: `osu`
+
+Just calling the osu module itself with just `,osu` will display osu! user information for the command invoker.
+
+| Command    | Parameters                                      | Description                                                                                    | Bot Permissions | User Permissions |
+|------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------|------------------|
+| `setname`, `setn` | `<username>` | Register your osu! name with the bot so that users can mention you/you don't have to type it in for every command. | | |
+| `player`, `p` | Optional `@<discord_user>` or `<username>` | General player information. Searches for user by Discord username if no parameters are given | | | |
 ---
 SlashBot isn't meant to be a public bot because some APIs impose limits which make it unfeasible for use in a larger number of servers with many users. For best results you should host your own instance for use in your server.
 
