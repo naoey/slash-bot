@@ -5,7 +5,7 @@ Created on 2016-08-23
 @author: naoey
 """
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 BOT_PREFIX = ","
 
@@ -43,8 +43,12 @@ MODULES = {
         "prefix": "lol",
         "config": {
             "static_refresh_interval": {
-                "value": "604800",
+                "value": 604800,
                 "description": "The time interval in seconds before refreshing static data"
+            },
+            "player_data_refresh_interval": {
+                "value": 1200,
+                "description": "The time interval in seconds before hitting rito APIs again for player data instead of using stored cache"
             }
         }
     },

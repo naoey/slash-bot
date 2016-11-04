@@ -259,7 +259,7 @@ current_time = datetime.datetime.now()
 logger.debug("Collecting static data")
 try:
     CHAMPIONS = RiotStaticData.get(key="CHAMPIONS")
-    if int((current_time - CHAMPIONS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+    if int((current_time - CHAMPIONS.updated).total_seconds()) >= CONFIG["static_refresh_interval"]["value"]:
         refresh_static_data(key="CHAMPIONS")
         RiotStaticData.update(
             value=json.dumps(CHAMPIONS),
@@ -270,7 +270,7 @@ try:
         CHAMPIONS = json.loads(CHAMPIONS.value)
 
     MASTERIES = RiotStaticData.get(key="MASTERIES")
-    if int((current_time - MASTERIES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+    if int((current_time - MASTERIES.updated).total_seconds()) >= CONFIG["static_refresh_interval"]["value"]:
         refresh_static_data(key="MASTERIES")
         RiotStaticData.update(
             value=json.dumps(MASTERIES),
@@ -281,7 +281,7 @@ try:
         MASTERIES = json.loads(MASTERIES.value)
 
     RUNES = RiotStaticData.get(key="RUNES")
-    if int((current_time - RUNES.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+    if int((current_time - RUNES.updated).total_seconds()) >= CONFIG["static_refresh_interval"]["value"]:
         refresh_static_data(key="RUNES")
         RiotStaticData.update(
             value=json.dumps(RUNES),
@@ -292,7 +292,7 @@ try:
         RUNES = json.loads(RUNES.value)
 
     SUMMONER_SPELLS = RiotStaticData.get(key="SUMMONER_SPELLS")
-    if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= int(CONFIG["static_refresh_interval"]["value"]):
+    if int((current_time - SUMMONER_SPELLS.updated).total_seconds()) >= CONFIG["static_refresh_interval"]["value"]:
         refresh_static_data(key="SUMMONER_SPELLS")
         RiotStaticData.update(
             value=json.dumps(SUMMONER_SPELLS),
@@ -325,7 +325,7 @@ class LeagueOfLegendsCommand(Command):
 
         self.subcommands_map = {}
         for cmd in LeagueOfLegendsFunctions.__dict__.values():
-            if isinstance(cmd, type) and issubclass(cmd, LeagueOfLegendsCommand):
+            if isinstance(cmd, type) and issubclass(cmd, Command):
                 if len(cmd.command) > 0:
                     self.subcommands_map[cmd.command] = cmd
                     if len(cmd.aliases) > 0:
@@ -342,7 +342,7 @@ class LeagueOfLegendsCommand(Command):
 
 
 class LeagueOfLegendsFunctions(object):
-    class SetName(LeagueOfLegendsCommand):
+    class SetName(Command):
         command = "setname"
         aliases = ["setn", ]
 
@@ -390,7 +390,7 @@ class LeagueOfLegendsFunctions(object):
                     region=REGION_NAMES[region]
                 )
 
-    class SummonerInfo(LeagueOfLegendsCommand):
+    class SummonerInfo(Command):
         command = "summoner"
         aliases = ["sumn", "player", ]
 
@@ -400,7 +400,7 @@ class LeagueOfLegendsFunctions(object):
 
             if local_summoner["last_updated"] is not None and (
                 datetime.datetime.now() - local_summoner["last_updated"]
-            ).total_seconds() / 60 < 5:
+            ).total_seconds() / 60 < CONFIG["player_data_refresh_interval"]["value"]:
                 self.response = json.loads(local_summoner["last_update_data"])
                 return
 
@@ -596,7 +596,7 @@ class LeagueOfLegendsFunctions(object):
 
             self.response = summary
 
-    class LiveGame(LeagueOfLegendsCommand):
+    class LiveGame(Command):
         command = "game"
         aliases = ["g", "live", ]
 
@@ -683,7 +683,7 @@ class LeagueOfLegendsFunctions(object):
                 else:
                     riot_api_error()
 
-    class PlayerRunePages(LeagueOfLegendsCommand):
+    class PlayerRunePages(Command):
         command = "runes"
         aliases = ["r", "runepages", ]
 
@@ -721,7 +721,7 @@ class LeagueOfLegendsFunctions(object):
 
             self.response = "```py\n{}\n```".format(runes_summary)
 
-    class PlayerMasteryPages(LeagueOfLegendsCommand):
+    class PlayerMasteryPages(Command):
         command = "mastery"
         aliases = ["m", "masterypages", ]
 
@@ -751,7 +751,7 @@ class LeagueOfLegendsFunctions(object):
 
             self.response = "```py\n{}\n```".format(masteries_summary)
 
-    class FreeChampionRotation(LeagueOfLegendsCommand):
+    class FreeChampionRotation(Command):
         command = "freechamps"
         aliases = ["fc", ]
 
