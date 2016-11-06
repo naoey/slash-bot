@@ -372,8 +372,8 @@ class CoreFunctions(object):
                 "```"
             ).format(
                 version=config.VERSION,
-                bot=config.GLOBAL["bot"].user.id,
-                owner=config.GLOBAL["discord"]["owner_id"],
+                bot=config.GLOBAL["bot_id"],
+                owner=config.GLOBAL["owner_id"],
                 uptime="{days} day(s), {hours} hour(s), {minutes} minute(s)".format(**uptime_det),
                 commands=config.STATS.COMMANDS_RECEIVED,
                 messages_sent=config.STATS.MESSAGES_SENT,
