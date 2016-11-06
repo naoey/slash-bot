@@ -188,8 +188,7 @@ SUMMONER_SPELLS = None
 CONFIG = config.MODULES["League of Legends"]["config"]
 
 if _API_KEY is None:
-    with open(config.PATHS["rito_creds"], "r") as cf_r:
-        _API_KEY = json.load(cf_r)["api_key"]
+    _API_KEY = config.GLOBAL["credentials"]["riot"]["api_key"]
 
 if api is None:
     api = riotwatcher.RiotWatcher(_API_KEY)

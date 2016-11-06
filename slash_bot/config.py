@@ -11,13 +11,8 @@ BOT_PREFIX = ","
 
 PATHS = {
     "logs_dir": "./../logs/",
-
     "database": "./../slash_bot.db",
-
-    "discord_creds": "./../private/discord.json",
-    "rito_creds": "./../private/rito.json",
-    "osu_creds": "./../private/osu.json",
-
+    "credentials_file": "./../private/credentials.json",
     "assets": "./../assets/",
 }
 
@@ -33,6 +28,11 @@ MODULES = {
     },
     "Management": {
         "location": "management",
+        "active": True,
+        "config": {},
+    },
+    "Utilities": {
+        "location": "utilities",
         "active": True,
         "config": {},
     },

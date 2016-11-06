@@ -69,8 +69,7 @@ class SlashBot(discord.Client):
     def __init__(self):
         super().__init__()
 
-        with open(config.PATHS["discord_creds"], "r") as cf_d:
-            config.GLOBAL["discord"] = json.load(cf_d)
+        CredentialsManager(config.PATHS["credentials_file"])
 
         config.GLOBAL["bot"] = self
 
@@ -82,7 +81,7 @@ class SlashBot(discord.Client):
         # logging.addHandler(discord_logger)
 
     def run(self):
-        super().run(config.GLOBAL["discord"]["token"])
+        super().run(config.GLOBAL["credentials"]["discord"]["token"])
 
     def log(self, msg):
         self.send_message(config.GLOBAL["discord"]["log_channel_id"])
@@ -151,6 +150,13 @@ class SlashBot(discord.Client):
     async def on_ready(self):
         logging.info("Ready!")
         logging.info("Bot version {}".format(config.VERSION))
+        logging.info("Bot user ID is {}".format(self.user.id))
+        logging.info("Bot owner ID is given as {}".format(config.GLOBAL["credentials"]["discord"]["owner_id"]))
+
+        # Store shorter references to some things
+        config.GLOBAL["bot_id"] = self.user.id
+        config.GLOBAL["owner_id"] = config.GLOBAL["credentials"]["discord"]["owner_id"]
+        config.GLOBAL["server_id"] = config.GLOBAL["credentials"]["discord"]["server_id"]
 
         config.STATS = Stats()
 
@@ -320,6 +326,18 @@ class SlashBot(discord.Client):
     """
     def __del__(self):
         logging.info("SlashBot exiting")
+
+
+class CredentialsManager(dict):
+    """Class for storing all API keys and whatnot that can be called on by modules to get their stuff."""
+    def __init__(self, path=None):
+        if path is None or not path.endswith(".json"):
+            raise ValueError("Invalid credentials file. Expected a JSON file.")
+
+        with open(path) as cf:
+            super().__init__(json.load(cf))
+
+        config.GLOBAL["credentials"] = self
 
 
 class CoreFunctions(object):
