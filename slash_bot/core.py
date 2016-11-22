@@ -116,7 +116,7 @@ class SlashBot(discord.Client):
                     config.STATS.MODULES_ACTIVE += 1
 
                 except ImportError as ie:
-                    logging.exception("Couln't import module '{}'".format(name))
+                    logging.exception("Couldn't import module '{}'".format(name))
 
                 except Exception as e:
                     logging.debug("{}".format(e))

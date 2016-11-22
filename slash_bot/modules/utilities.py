@@ -40,7 +40,7 @@ class SetLocation(Command):
 
 
 class Weather(Command):
-    command = "weather"
+    # command = "weather"
     aliases = ["w", "we", ]
 
     @overrides(Command)

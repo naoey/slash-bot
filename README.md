@@ -66,8 +66,7 @@ The bot uses the prefix `,` for all commands. If a module has listed a module pr
 
 | Command    | Parameters                                      | Description                                                                                    | Bot Permissions | User Permissions |
 |------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------|------------------|
-| `setlocation`, `setloc` | `<city>`                             | Store your location for things like weather. | | | 
-| `weather', `we`, `w` | Optional `<city>` | Displays weather for city if given or if the user calling it has stored it with `setlocation` | | | |
+| `setlocation`, `setloc` | `<city>`                             | Store your location for things like weather. | | |
 
 
 #### League of Legends
