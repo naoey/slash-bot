@@ -29,6 +29,7 @@ class User(SlashBotDatabase):
     user_name = TextField(index=True)
     join_date = DateTimeField(null=True)
     last_online = DateTimeField(null=True)
+    stored_location = TextField(null=True)
 
 
 class Server(SlashBotDatabase):

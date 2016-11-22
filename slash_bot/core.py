@@ -69,8 +69,7 @@ class SlashBot(discord.Client):
     def __init__(self):
         super().__init__()
 
-        with open(config.PATHS["discord_creds"], "r") as cf_d:
-            config.GLOBAL["discord"] = json.load(cf_d)
+        CredentialsManager(config.PATHS["credentials_file"])
 
         config.GLOBAL["bot"] = self
 
@@ -82,7 +81,7 @@ class SlashBot(discord.Client):
         # logging.addHandler(discord_logger)
 
     def run(self):
-        super().run(config.GLOBAL["discord"]["token"])
+        super().run(config.GLOBAL["credentials"]["discord"]["token"])
 
     def log(self, msg):
         self.send_message(config.GLOBAL["discord"]["log_channel_id"])
@@ -117,7 +116,7 @@ class SlashBot(discord.Client):
                     config.STATS.MODULES_ACTIVE += 1
 
                 except ImportError as ie:
-                    logging.exception("Couln't import module '{}'".format(name))
+                    logging.exception("Couldn't import module '{}'".format(name))
 
                 except Exception as e:
                     logging.debug("{}".format(e))
@@ -151,6 +150,13 @@ class SlashBot(discord.Client):
     async def on_ready(self):
         logging.info("Ready!")
         logging.info("Bot version {}".format(config.VERSION))
+        logging.info("Bot user ID is {}".format(self.user.id))
+        logging.info("Bot owner ID is given as {}".format(config.GLOBAL["credentials"]["discord"]["owner_id"]))
+
+        # Store shorter references to some things
+        config.GLOBAL["bot_id"] = self.user.id
+        config.GLOBAL["owner_id"] = config.GLOBAL["credentials"]["discord"]["owner_id"]
+        config.GLOBAL["server_id"] = config.GLOBAL["credentials"]["discord"]["server_id"]
 
         config.STATS = Stats()
 
@@ -322,6 +328,18 @@ class SlashBot(discord.Client):
         logging.info("SlashBot exiting")
 
 
+class CredentialsManager(dict):
+    """Class for storing all API keys and whatnot that can be called on by modules to get their stuff."""
+    def __init__(self, path=None):
+        if path is None or not path.endswith(".json"):
+            raise ValueError("Invalid credentials file. Expected a JSON file.")
+
+        with open(path) as cf:
+            super().__init__(json.load(cf))
+
+        config.GLOBAL["credentials"] = self
+
+
 class CoreFunctions(object):
     class PublicStats(Command):
         command = "stats"
@@ -354,8 +372,8 @@ class CoreFunctions(object):
                 "```"
             ).format(
                 version=config.VERSION,
-                bot=config.GLOBAL["bot"].user.id,
-                owner=config.GLOBAL["discord"]["owner_id"],
+                bot=config.GLOBAL["bot_id"],
+                owner=config.GLOBAL["owner_id"],
                 uptime="{days} day(s), {hours} hour(s), {minutes} minute(s)".format(**uptime_det),
                 commands=config.STATS.COMMANDS_RECEIVED,
                 messages_sent=config.STATS.MESSAGES_SENT,

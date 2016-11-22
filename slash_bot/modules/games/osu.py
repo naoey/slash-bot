@@ -97,8 +97,7 @@ class OsuAPI(object):
 _API_KEY = None
 _api = None
 if _API_KEY is None:
-    with open(config.PATHS["osu_creds"], "r") as cf_r:
-        _API_KEY = json.load(cf_r)["api_key"]
+    _API_KEY = config.GLOBAL["credentials"]["osu"]["api_key"]
 
 if _api is None:
     _api = OsuAPI(_API_KEY)

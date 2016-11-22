@@ -17,24 +17,31 @@ A chatbot currently focusing on bringing as much information about your games as
 Example discord.json credentials file:
 ```json
 {
-  "token":"xxxxxxxxxxxxxxxxxxxxx",
-  "client_id":"xxxxxxxxxxxxxxxxxxxxx",
-  "bot_id":"xxxxxxxxxxxxxxxxxxxxx",
-  "owner_id":"xxxxxxxxxxxxxxxxxxxxx",
-  "server_id":"xxxxxxxxxxxxxxxxxxxxx",
-  "log_channel_id":"xxxxxxxxxxxxxxxxxxxxx",
-  "invite_link": "https://discordapp.com/oauth2/authorize?&client_id=<your_client_id>&scope=bot"
-}
-```
-
-The `token` value is mandatory. The remaining values are optional and are currently not used anywhere. The `server_id` refers to the bot's server, if it has one. `log_channel_id` will eventually be used for optional information and status logging to a Discord text channel.
-
-Example rito.json credentials file:
-```json
-{
+  "discord": {
+    "token":"xxxxxxxxxxxxxxxxxxxxx",
+    "client_id":"xxxxxxxxxxxxxxxxxxxxx",
+    "bot_id":"xxxxxxxxxxxxxxxxxxxxx",
+    "owner_id":"xxxxxxxxxxxxxxxxxxxxx",
+    "invite_link": "https://discordapp.com/oauth2/authorize?&client_id=<your_client_id>&scope=bot"
+  },
+  "riot": {
     "api_key": "xxxxxxxxxxxxxxxxxxxxx"
+  },
+  "osu": {
+    "api_key": "xxxxxxxxxxxxxxxxxxxxx"
+  },
+  "bungie": {
+    "api_key": "xxxxxxxxxxxxxxxxxxxxx"
+  },
+  "yahoo": {
+    "client_id": "xxxxxxxxxxxxxxxxxxxxx",
+    "client_secret": "xxxxxxxxxxxxxxxxxxxxx"
+  }
 }
 ```
+
+The `token` value is mandatory to run the bot. The remaining depends on which modules are activated.
+
 ----
 ### Commands
 
@@ -54,6 +61,13 @@ The bot uses the prefix `,` for all commands. If a module has listed a module pr
 |------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------|------------------|
 | `slowmode`, `sm` | Optional `@<discord_user>`, `<interval_in_seconds>`, `@<discord_user> <interval_in_seconds>` | Toggles slow mode in a channel. If no parameters are given, allows only 1 message per 5 seconds in the channel where it is invoked. Slow can be applied to individual users by mentioning them. If users are slowed on a channel and then slow is invoked for the whole channel, the per-user slows will be reset. *Note: Currently slows are reset when the bot is restarted*.      | Manage Messages | Administrator |
 | `slowlist`, `sl`, `sml` | | Displays a list of users who are currently in slow mode on that channel. Command doesn't respond to users who are in the slow list. | | | |
+
+#### Utilities
+
+| Command    | Parameters                                      | Description                                                                                    | Bot Permissions | User Permissions |
+|------------|-------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------|------------------|
+| `setlocation`, `setloc` | `<city>`                             | Store your location for things like weather. | | |
+
 
 #### League of Legends
 
