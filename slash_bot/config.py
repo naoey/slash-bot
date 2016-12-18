@@ -44,13 +44,13 @@ MODULES = {
         "config": {
             "static_refresh_interval": {
                 "value": 604800,
-                "description": "The time interval in seconds before refreshing static data"
+                "description": "The time interval in seconds before refreshing static data",
             },
             "player_data_refresh_interval": {
                 "value": 1200,
-                "description": "The time interval in seconds before hitting rito APIs again for player data instead of using stored cache"
-            }
-        }
+                "description": "The time interval in seconds before hitting rito APIs again for player data instead of using stored cache",
+            },
+        },
     },
     "osu!": {
         "location": "games.osu",
@@ -65,6 +65,24 @@ MODULES = {
         "active": False,
         "prefix": "mal",
         "config": {},
+    },
+    "Music": {
+        "location": "music.music",
+        "active": True,
+        "config": {
+            "max_queue_size": {
+                "value": 250,
+                "description": "The maximum number of songs that can be queued after which queue requests are ignored",
+            },
+            "max_active_players": {
+                "value": 15,
+                "description": "The maximum number of active music players after which new players will remain paused until an existing player stops",
+            },
+            "own_server_only": {
+                "value": False,
+                "description": "Defines if music can be played only on the bot's server",
+            },
+        },
     },
 }
 
