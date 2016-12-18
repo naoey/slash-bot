@@ -8,7 +8,7 @@ Created on 2016-11-22
 import logging
 import datetime
 
-from discord import Forbidden, NotFound
+from discord import ChannelType
 
 import config
 
@@ -61,27 +61,33 @@ class MusicFunctions(object):
 
         async def make_response(self):
             await super().make_response()
-            logger.debug("Setting up configuration for channel with params {}".format(self.params))
-            channel = next([channel for channel in self._raw_message.server.channels
-                            if string_compare(channel.name, self.params[0])], None)
 
-            new_configuration = {
-                "server": channel.server.id,
-                "channel": channel.id,
-                "last_modified": datetime.datetime.now(),
-            }
+            try:
+                channel = [channel for channel in self._raw_message.server.channels
+                           if string_compare(channel.name, self.params[0]) and
+                           channel.type == ChannelType.voice][0]
+                logger.debug("Got channel {}".format(channel))
 
-            if channel is None:
-                raise SlashBotValueError("Couldn't find the channel you mentioned!", to_be_mentioned=self.invoker.mention)
+                new_configuration = {
+                    "default_channel": channel.id,
+                    "last_modified": datetime.datetime.now(),
+                }
 
-            music_configuration, created = MusicConfiguration.get_or_create(channel=channel.id, defaults=new_configuration)
-            if not created:
-                server = new_configuration.pop('server')
-                r = MusicConfiguration.update(**new_configuration).where(MusicConfiguration.server == server).execute()
+                music_configuration, created = MusicConfiguration.get_or_create(
+                    server=channel.server.id,
+                    defaults=new_configuration
+                )
 
-                if r == 1:
-                    self.response = "Updated default music channel to {channel_name} 👍".format(
-                        channel_name=channel.name
-                    )
-                else:
-                    raise SlashBotError("An error occurred while updating the default music channel!")
+                if not created:
+                    r = MusicConfiguration.update(**new_configuration).where(
+                        MusicConfiguration.server == self._raw_message.server.id
+                    ).execute()
+
+                    if r == 1:
+                        self.response = "Updated default music channel to {channel_name} 👍".format(
+                            channel_name=channel.name
+                        )
+                    else:
+                        raise SlashBotError("An error occurred while updating the default music channel!")
+            except IndexError:
+                raise SlashBotValueError("Couldn't find the channel you mentioned!", mention=self.invoker.mention)
