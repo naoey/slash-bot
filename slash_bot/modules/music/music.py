@@ -16,7 +16,7 @@ from errors import *
 from models import *
 from commands import *
 from utils import *
-from .player import STATE, MusicPlayer
+from .player import STATE, YoutubePlayer
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,16 @@ BOT = config.GLOBAL["bot"]
 _players = {}
 
 
-class Music(Command):
-    command = "music"
-    aliases = ["m", ]
+class YoutubeMusic(Command):
+    '''Base command for all music functions that play from YouTube.'''
+    command = "youtube"
+    aliases = ["yt", ]
 
     def __init__(self, message):
         super().__init__(message)
 
         self.subcommands_map = {}
-        for cmd in MusicFunctions.__dict__.values():
+        for cmd in YoutubeMusicFunctions.__dict__.values():
             if isinstance(cmd, type) and issubclass(cmd, Command):
                 if len(cmd.command) > 0:
                     self.subcommands_map[cmd.command] = cmd
@@ -47,10 +48,10 @@ class Music(Command):
 
     @classmethod
     async def create_command(cls, message):
-        return Music(message).get_delegate_command()
+        return YoutubeMusic(message).get_delegate_command()
 
 
-class MusicFunctions(object):
+class YoutubeMusicFunctions(object):
     class SetDefaultChannel(Command):
         command = "setchannel"
         aliases = ["setch", ]
@@ -99,7 +100,6 @@ class MusicFunctions(object):
     class QueueSong(Command):
         command = "queue"
         aliases = ["q", "add"]
-        required_permissions = [PERMISSIONS.SERVER_ADMIN, ]
         silent_permissions = True
 
         def __init__(self, message):
@@ -115,25 +115,29 @@ class MusicFunctions(object):
 
         @overrides(Command)
         async def make_response(self):
-            if BOT.is_voice_connected(self._raw_message.server):
-                self.response = "Already connected to a voice channel!"
-                return
+            if not BOT.is_voice_connected(self._raw_message.server):
+                vc = self._raw_message.server.get_channel(self._get_server_default_vc())
+                if vc is None:
+                    if self.invoker.voice.voice_channel is None:
+                        logger.debug("Can't queue song because invoker isn't in a voice channel and server doesn't have a default")
+                        raise NoVoiceChannelError(
+                            "You need to be in a voice channel or the server should have a default channel",
+                            mention=self.invoker.mention
+                        )
+                    else:
+                        vc = self.invoker.voice.voice_channel
 
-            vc = None
-            self.response = "Hue"
-            if vc is None:
-                if self.invoker.voice.voice_channel is None:
-                    logger.debug("Can't queue song because invoker isn't in a voice channel and server doesn't have a default")
-                    raise NoVoiceChannelError(
-                        "You need to be in a voice channel or the server should have a default channel",
-                        mention=self.invoker.mention
-                    )
-                else:
-                    vc = self.invoker.voice.voice_channel
-                    logger.debug("Voice channel for invoker is {}".format(self.invoker.voice.voice_channel))
+                        voice_conn = await BOT.join_voice_channel(vc)
+            else:
+                voice_conn = BOT.voice_client_in(self._raw_message.server)
 
-            voice_conn = await BOT.join_voice_channel(vc)
-            logger.debug("Bot voice status is {}".format(BOT.is_voice_connected(self._raw_message.server)))
+            player = YoutubePlayer(voice_conn)
+            if self._raw_message.server.id not in _players.keys():
+                _players[self._raw_message.server.id] = player
 
-            player = await voice_conn.create_ytdl_player("https://www.youtube.com/watch?v=eeQ5Nd3I3YI&app=desktop")
-            player.start()
+            await player.queue(self.params[0], queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
+
+            self.response = "**{track_name}** queued by **{user_name}**".format(
+                track_name=self.params[0],
+                user_name=self.invoker.name
+            )

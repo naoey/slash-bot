@@ -56,3 +56,7 @@ class DiscordPermissionError(SlashBotPermissionError):
 
 class NoVoiceChannelError(SlashBotError):
     pass
+
+
+class MusicError(SlashBotError):
+    pass

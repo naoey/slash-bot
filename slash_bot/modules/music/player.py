@@ -10,6 +10,7 @@ import datetime
 import json
 
 from enum import Enum
+from abc import ABCMeta, abstractmethod
 
 import config
 
@@ -26,76 +27,109 @@ class STATE(Enum):
     STOPPED = 3
 
 
-class MusicPlayer(object):
-    """The main player that controls playback."""
-    def __init__(self, voice_channel=None):
-        if voice_channel is None:
-            raise ValueError("No voice channel given")
+class MusicPlayer(metaclass=ABCMeta):
+    """Base player class."""
+    def __init__(self):
+        self.now_playing = Playlist()
 
-        self.state = STATE.STOPPED
-
-        self._playlist = []
-        self._current_idx = -1
-
+    @abstractmethod
     async def queue(self, **kwargs):
-        if url not in kwargs.keys() or kwargs["url"] is None or not _is_yt_url(kwargs["url"]):
-            raise ValueError("Invalid URL")
+        pass
 
-        self._playlist.append(kwargs)
-        return True
-
+    @abstractmethod
     async def play(self):
-        if url is None:
-            return
+        pass
 
-        if self.state == STATE.PAUSED:
-            self.state = STATE.PLAYING
-
-        self.state = STATE.PLAYING
-        return True
-
+    @abstractmethod
     async def pause(self):
-        if self.state == STATE.PLAYING:
-            self.state = STATE.PAUSED
+        pass
 
-        return True
-
+    @abstractmethod
     async def stop(self):
-        if self.state != STATE.STOPPED:
-            self.state = STATE.STOPPED
+        pass
 
-        return True
+    @abstractmethod
+    async def next_track(self):
+        pass
 
-    async def next(self):
-        if self._current_idx + 1 >= self._playlist.length:
-            raise SlashBotMusicNoTrackException("No more songs queued!")
+    @abstractmethod
+    async def previous_track(self):
+        pass
 
-        return True
-
-    async def previous(self):
-        if self._current_idx - 1 < 0:
-            raise SlashBotMusicNoTrackException("This is the first track in queue!")
-
-        return True
-
+    @abstractmethod
     async def destroy(self):
         pass
+
+
+class YoutubePlayer(MusicPlayer):
+    '''A player that streams from YouTube using discord.py's `get_ytdl_player` player.'''
+    def __init__(self, voice_conn=None):
+        if voice_conn is None or type(voice_conn).__name__ != "VoiceClient":
+            raise ValueError("Can't create a YoutubePlayer without a valid player.")
+
+        super().__init__()
+        self.__voice_conn = voice_conn
+        self.__player = None
+
+    async def queue(self, uri, **kwargs):
+        if uri is None or not self._is_yt_url(uri):
+            raise ValueError("Not a valid YouTube URL")
+
+        self.now_playing.append(Track(yt_uri=uri, **kwargs))
+        logger.debug("Player is {}".format(self.__player))
+        if self.__player is None:
+            await self.play()
+
+    async def play(self):
+        if len(self.now_playing) < 1:
+            raise MusicError("No more tracks in playlist!")
+
+        if self.__player is None:
+            self.__player = await self.__voice_conn.create_ytdl_player(self.now_playing[0].yt_uri)
+            self.__player.start()
+            logger.debug("Player is {} and state is {}".format(self.__player, self.__player.is_playing()))
+            self.state = STATE.PLAYING
+
+    async def pause(self):
+        self.__player.pause()
+        self.state = STATE.PAUSED
+
+    async def stop(self):
+        self.__player.stop()
+        self.__player = None
+        self.state = STATE.STOPPED
+
+    async def next_track(self):
+        if self.__player is not None:
+            if self.__player.is_playing():
+                await self.stop()
+                await self.play()
+
+    async def previous_track(self):
+        logger.info("Previous functionality not implemented yet")
+
+    async def destroy(self):
+        if self.__player is not None and self.__player.is_playing():
+            await self.stop()
+            await self.__voice_conn.disconnect()
+
+    @staticmethod
+    def _is_yt_url(url):
+        return True
+
+
+class LocalPlayer(MusicPlayer):
+    '''A player that streams from the local file system using discord.py's `get_ffmpeg_player` player.'''
+    pass
 
 
 class Track(object):
     """A track which is played by a `MusicPlayer`"""
     def __init__(self, **kwargs):
-        try:
-            self.queued_by = kwrags["queued_by"]
-            self.url = kwargs["url"]
-
-        except Exception as e:
-            pass
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
-class Playlist(object):
+class Playlist(list):
+    """A collection of `Track` objects."""
     pass
-
-
-def _is_yt_url(url):
-    return True
