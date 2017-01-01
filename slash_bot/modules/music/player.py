@@ -13,7 +13,7 @@ from enum import Enum
 
 import config
 
-from errors impot *
+from errors import *
 from models import *
 from utils import *
 
@@ -27,6 +27,7 @@ class STATE(Enum):
 
 
 class MusicPlayer(object):
+    """The main player that controls playback."""
     def __init__(self, voice_channel=None):
         if voice_channel is None:
             raise ValueError("No voice channel given")
@@ -79,6 +80,21 @@ class MusicPlayer(object):
 
     async def destroy(self):
         pass
+
+
+class Track(object):
+    """A track which is played by a `MusicPlayer`"""
+    def __init__(self, **kwargs):
+        try:
+            self.queued_by = kwrags["queued_by"]
+            self.url = kwargs["url"]
+
+        except Exception as e:
+            pass
+
+
+class Playlist(object):
+    pass
 
 
 def _is_yt_url(url):

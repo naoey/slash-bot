@@ -170,6 +170,9 @@ class SlashBot(discord.Client):
         logging.info("Activating modules")
         await self.activate_modules()
 
+        discord.opus.load_opus("../opus/libopus-0")
+        logging.info("Opus loaded is {}".format(discord.opus.is_loaded()))
+
     async def on_message(self, message):
         if message.channel.id in self._channel_message_subscriptions.keys():
             for each in self._channel_message_subscriptions[message.channel.id].values():

@@ -16,10 +16,13 @@ from errors import *
 from models import *
 from commands import *
 from utils import *
+from .player import STATE, MusicPlayer
 
 logger = logging.getLogger(__name__)
 
 BOT = config.GLOBAL["bot"]
+
+_players = {}
 
 
 class Music(Command):
@@ -59,6 +62,7 @@ class MusicFunctions(object):
 
             self.params = self.params[1:]
 
+        @overrides(Command)
         async def make_response(self):
             await super().make_response()
 
@@ -91,3 +95,45 @@ class MusicFunctions(object):
                         raise SlashBotError("An error occurred while updating the default music channel!")
             except IndexError:
                 raise SlashBotValueError("Couldn't find the channel you mentioned!", mention=self.invoker.mention)
+
+    class QueueSong(Command):
+        command = "queue"
+        aliases = ["q", "add"]
+        required_permissions = [PERMISSIONS.SERVER_ADMIN, ]
+        silent_permissions = True
+
+        def __init__(self, message):
+            super().__init__(message)
+
+            self.params = self.params[1:]
+
+        def _get_server_default_vc(self):
+            try:
+                return MusicConfiguration.get(server=self._raw_message.server.id).default_channel
+            except MusicConfiguration.DoesNotExist as e:
+                return None
+
+        @overrides(Command)
+        async def make_response(self):
+            if BOT.is_voice_connected(self._raw_message.server):
+                self.response = "Already connected to a voice channel!"
+                return
+
+            vc = None
+            self.response = "Hue"
+            if vc is None:
+                if self.invoker.voice.voice_channel is None:
+                    logger.debug("Can't queue song because invoker isn't in a voice channel and server doesn't have a default")
+                    raise NoVoiceChannelError(
+                        "You need to be in a voice channel or the server should have a default channel",
+                        mention=self.invoker.mention
+                    )
+                else:
+                    vc = self.invoker.voice.voice_channel
+                    logger.debug("Voice channel for invoker is {}".format(self.invoker.voice.voice_channel))
+
+            voice_conn = await BOT.join_voice_channel(vc)
+            logger.debug("Bot voice status is {}".format(BOT.is_voice_connected(self._raw_message.server)))
+
+            player = await voice_conn.create_ytdl_player("https://www.youtube.com/watch?v=eeQ5Nd3I3YI&app=desktop")
+            player.start()
