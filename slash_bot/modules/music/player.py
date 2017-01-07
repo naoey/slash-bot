@@ -72,9 +72,6 @@ class YoutubePlayer(MusicPlayer):
         self.__player = None
 
     async def queue(self, uri, **kwargs):
-        if uri is None or not self._is_yt_url(uri):
-            raise ValueError("Not a valid YouTube URL")
-
         self.now_playing.append(Track(yt_uri=uri, **kwargs))
         logger.debug("Player is {}".format(self.__player))
         if self.__player is None:
@@ -113,9 +110,7 @@ class YoutubePlayer(MusicPlayer):
             await self.stop()
             await self.__voice_conn.disconnect()
 
-    @staticmethod
-    def _is_yt_url(url):
-        return True
+
 
 
 class LocalPlayer(MusicPlayer):

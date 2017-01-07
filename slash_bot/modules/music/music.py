@@ -7,6 +7,8 @@ Created on 2016-11-22
 
 import logging
 import datetime
+import urllib
+from bs4 import BeautifulSoup
 
 from discord import ChannelType
 
@@ -23,6 +25,10 @@ logger = logging.getLogger(__name__)
 BOT = config.GLOBAL["bot"]
 
 _players = {}
+
+
+class Music(Command):
+    '''Base command for general music configuration etc.'''
 
 
 class YoutubeMusic(Command):
@@ -113,6 +119,30 @@ class YoutubeMusicFunctions(object):
             except MusicConfiguration.DoesNotExist as e:
                 return None
 
+        @staticmethod
+        def _is_yt_url(url):
+            return url.startswith("http") and "youtube" in url
+
+        @staticmethod
+        def _search_yt(query):
+            query = urllib.parse.quote(query)
+            soup = BeautifulSoup(
+                urllib.request.urlopen("https://www.youtube.com/results?search_query={}".format(query)).read(),
+                "html.parser"
+            )
+            results = []
+            for vid in soup.findAll(attrs={'class': 'yt-uix-tile-link'}):
+                results.append(('https://www.youtube.com{}'.format(vid["href"]), vid["title"]))
+            return results
+
+        @staticmethod
+        async def _get_title_from_url(url):
+            soup = BeautifulSoup(
+                urllib.request.urlopen(url).read(),
+                "html.parser"
+            )
+            return soup.find(id="eow-title")["title"]
+
         @overrides(Command)
         async def make_response(self):
             if not BOT.is_voice_connected(self._raw_message.server):
@@ -135,9 +165,17 @@ class YoutubeMusicFunctions(object):
             if self._raw_message.server.id not in _players.keys():
                 _players[self._raw_message.server.id] = player
 
-            await player.queue(self.params[0], queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
+            if self._is_yt_url(self.params[0]):
+                logger.debug("Parameter is a YouTube URL, queueing song directly")
+                track_name = await self._get_title_from_url(self.params[0])
+                await player.queue(self.params[0], queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
+            else:
+                query = " ".join(self.params)
+                logger.debug("Searching YouTube for {}".format(query))
+                url, track_name = self._search_yt(query)[0]
+                await player.queue(url, queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
 
             self.response = "**{track_name}** queued by **{user_name}**".format(
-                track_name=self.params[0],
+                track_name=track_name,
                 user_name=self.invoker.name
             )
