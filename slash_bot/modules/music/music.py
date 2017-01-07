@@ -105,7 +105,7 @@ class YoutubeMusicFunctions(object):
 
     class QueueSong(Command):
         command = "queue"
-        aliases = ["q", "add"]
+        aliases = ["q", "add", ]
         silent_permissions = True
 
         def __init__(self, message):
@@ -161,21 +161,43 @@ class YoutubeMusicFunctions(object):
             else:
                 voice_conn = BOT.voice_client_in(self._raw_message.server)
 
-            player = YoutubePlayer(voice_conn)
             if self._raw_message.server.id not in _players.keys():
-                _players[self._raw_message.server.id] = player
+                _players[self._raw_message.server.id] = YoutubePlayer(voice_conn)
+            player = _players[self._raw_message.server.id]
 
             if self._is_yt_url(self.params[0]):
                 logger.debug("Parameter is a YouTube URL, queueing song directly")
-                track_name = await self._get_title_from_url(self.params[0])
-                await player.queue(self.params[0], queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
+                url, track_name = self.params[0], await self._get_title_from_url(self.params[0])
             else:
                 query = " ".join(self.params)
                 logger.debug("Searching YouTube for {}".format(query))
                 url, track_name = self._search_yt(query)[0]
-                await player.queue(url, queued_by=self.invoker, queued_in_channel=self._raw_message.channel)
 
             self.response = "**{track_name}** queued by **{user_name}**".format(
                 track_name=track_name,
                 user_name=self.invoker.name
             )
+            await player.queue(url, queued_by=self.invoker, queued_in_channel=self._raw_message.channel, title=track_name)
+
+            logger.debug("Player state is {}".format(player.state))
+            if player.state != STATE.PLAYING:
+                track = await player.play()
+                self.response = '{queue_response}{chunk_marker}Now playing {track_name}, queued by {user}'.format(
+                    queue_response=self.response,
+                    chunk_marker=self.response_chunk_marker,
+                    track_name=track.title,
+                    user=track.queued_by
+                )
+
+    class NextSong(Command):
+        command = "next"
+        aliases = ["n", ]
+        silent_permissions = True
+
+        def __init__(self, message):
+            super().__init__(message)
+
+            self.params = self.params[1:]
+
+        async def make_response(self):
+            response = "Hue"
