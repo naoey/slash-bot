@@ -82,7 +82,7 @@ class YoutubePlayer(MusicPlayer):
 
         if self.state != STATE.PLAYING:
             self.now_playing = self.queued.pop(0)
-            self.player = await self.__voice_conn.create_ytdl_player(self.now_playing.yt_uri)
+            self.player = await self.__voice_conn.create_ytdl_player(self.now_playing.yt_uri, after=self.now_playing.after)
             self.player.start()
             logger.debug("Player is {} and state is {}".format(self.player, self.player.is_playing()))
             self.state = STATE.PLAYING
@@ -100,12 +100,12 @@ class YoutubePlayer(MusicPlayer):
             self.state = STATE.STOPPED
 
     async def next_track(self):
-        if self.queued.length > 0:
+        if self.queued.length() > 0:
             if self.player.is_playing():
                 await self.stop()
                 await self.play()
 
-        return self.now_playing()
+        return self.now_playing
 
     async def previous_track(self):
         logger.info("Previous functionality not implemented yet")
@@ -113,7 +113,7 @@ class YoutubePlayer(MusicPlayer):
     async def destroy(self):
         if self.player is not None and self.player.is_playing():
             await self.stop()
-            await self.__voice_conn.disconnect()
+        await self.__voice_conn.disconnect()
 
 
 class LocalPlayer(MusicPlayer):
@@ -130,4 +130,5 @@ class Track(object):
 
 class Playlist(list):
     """A collection of `Track` objects."""
-    pass
+    def length(self):
+        return len(self)

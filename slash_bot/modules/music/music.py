@@ -115,7 +115,7 @@ class YoutubeMusicFunctions(object):
 
         def _get_server_default_vc(self):
             try:
-                return MusicConfiguration.get(server=self._raw_message.server.id).default_channel
+                return MusicConfiguration.get(server=self._raw_message.server.id).default_channel_id
             except MusicConfiguration.DoesNotExist as e:
                 return None
 
@@ -143,21 +143,40 @@ class YoutubeMusicFunctions(object):
             )
             return soup.find(id="eow-title")["title"]
 
+        async def _after_notification(self, track):
+            await BOT.send_message("Finished playing **{track}**, queued by **{user}**".format(
+                track=track.title,
+                user=track.queued_by
+            ), self._raw_message.channel)
+
+            next_ = _players[self._raw_message.server.id].next_track()
+            if next_ is not None:
+                await BOT.send_message("Now playing {track}, queued by {user}".format(
+                    track=next_.title,
+                    user=next_.queued_by
+                ), next_.queued_in_channel)
+
+        def _song_after(self):
+            _players[self._raw_message.server.id].state = STATE.STOPPED
+            coro = self._after_notification(_players[self._raw_message.server.id].now_playing)
+            fut = asyncio.run_coroutine_threadsafe(coro, BOT.loop)
+            fut.result()
+
         @overrides(Command)
         async def make_response(self):
             if not BOT.is_voice_connected(self._raw_message.server):
-                vc = self._raw_message.server.get_channel(self._get_server_default_vc())
-                if vc is None:
-                    if self.invoker.voice.voice_channel is None:
+                if self.invoker.voice.voice_channel is None:
+                    vc = self._raw_message.server.get_channel(self._get_server_default_vc())
+                    if vc is None:
                         logger.debug("Can't queue song because invoker isn't in a voice channel and server doesn't have a default")
                         raise NoVoiceChannelError(
                             "You need to be in a voice channel or the server should have a default channel",
                             mention=self.invoker.mention
                         )
-                    else:
-                        vc = self.invoker.voice.voice_channel
-
-                        voice_conn = await BOT.join_voice_channel(vc)
+                    voice_conn = await BOT.join_voice_channel(vc)
+                else:
+                    vc = self.invoker.voice.voice_channel
+                    voice_conn = await BOT.join_voice_channel(vc)
             else:
                 voice_conn = BOT.voice_client_in(self._raw_message.server)
 
@@ -177,17 +196,24 @@ class YoutubeMusicFunctions(object):
                 track_name=track_name,
                 user_name=self.invoker.name
             )
-            await player.queue(url, queued_by=self.invoker, queued_in_channel=self._raw_message.channel, title=track_name)
+
+            await player.queue(
+                url,
+                queued_by=self.invoker,
+                queued_in_channel=self._raw_message.channel,
+                title=track_name,
+                after=self._song_after
+            )
 
             logger.debug("Player state is {}".format(player.state))
             if player.state != STATE.PLAYING:
                 track = await player.play()
-                self.response = '{queue_response}{chunk_marker}Now playing {track_name}, queued by {user}'.format(
+                await BOT.send_message("Now playing {track_name}, queued by {user}".format(
                     queue_response=self.response,
                     chunk_marker=self.response_chunk_marker,
                     track_name=track.title,
                     user=track.queued_by
-                )
+                ), self._raw_message.channel)
 
     class NextSong(Command):
         command = "next"
@@ -199,5 +225,96 @@ class YoutubeMusicFunctions(object):
 
             self.params = self.params[1:]
 
+        @overrides(Command)
         async def make_response(self):
-            response = "Hue"
+            if self._raw_message.server.id not in _players.keys():
+                self.response = "No track currently playing!"
+                return
+
+            if len(_players[self._raw_message.server.id].queued) < 1:
+                self.response = "No more songs in queue!"
+                return
+
+            track = await _players[self._raw_message.server.id].next_track()
+            self.response = "Now playing **{track}**, queued by **{user}**".format(
+                track=track.title,
+                user=track.queued_by,
+            )
+
+    class CurrentPlaylist(Command):
+        command = "playlist"
+        aliases = ["pl", ]
+
+        def __init__(self, message):
+            super().__init__(message)
+
+            self.params = self.params[1:]
+
+        @overrides(Command)
+        async def make_response(self):
+            if self._raw_message.server.id not in _players.keys():
+                self.response = "No music currently playing on this server"
+                return
+
+            if len(_players[self._raw_message.server.id].queued) < 1:
+                self.response = "No upcoming songs!"
+                return
+
+            upcoming = ""
+            for track in _players[self._raw_message.server.id].queued:
+                upcoming += "♦ **{track}**, queued by **{user}**\n".format(
+                    track=track.title,
+                    user=track.queued_by,
+                )
+
+            self.response = "{upcoming}".format(upcoming=upcoming)
+
+    class Stop(Command):
+        command = "stop"
+        aliases = ["s", ]
+
+        def __init__(self, message):
+            super().__init__(message)
+
+        @overrides(Command)
+        async def make_response(self):
+            if self._raw_message.server.id not in _players.keys():
+                self.response = "No music player active on this server!"
+                return
+
+            await _players[self._raw_message.server.id].stop()
+            self.response = "Music player stopped"
+
+    class Destroy(Command):
+        command = "quit"
+        aliases = ["destory", "d", ]
+
+        def __init__(self, message):
+            super().__init__(message)
+
+        @overrides(Command)
+        async def make_response(self):
+            if self._raw_message.server.id not in _players.keys():
+                self.response = "No music player active on this server!"
+                return
+
+            await _players[self._raw_message.server.id].destroy()
+
+    class GetLink(Command):
+        command = "link"
+        aliases = ["url", ]
+
+        def __init__(self, message):
+            super().__init__(message)
+
+        @overrides(Command)
+        async def make_response(self):
+            if self._raw_message.server.id not in _players.keys():
+                self.response = "No music player active on this server!"
+                return
+
+            if _players[self._raw_message.server.id].state != STATE.PLAYING:
+                self.response = "No track is currently playing!"
+                return
+
+            self.response = "{}".format(_players[self._raw_message.server.id].player.url)
