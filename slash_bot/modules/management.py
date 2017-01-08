@@ -27,7 +27,7 @@ _alive_slowers = {}
 class SlowMode(Command):
     command = "slowmode"
     aliases = ["sm", ]
-    required_permissions = [Permissions.SERVER_ADMIN, ]
+    required_permissions = [PERMISSIONS.SERVER_ADMIN, ]
 
     def __init__(self, message):
         super().__init__(message)
@@ -62,7 +62,7 @@ class SlowMode(Command):
 
             if message.content.startswith(config.BOT_PREFIX):
                 first_word = message.content[1:].split(" ")[0]
-                if (Permissions.can(message.channel, message.author, permission=Permissions.SERVER_ADMIN) and
+                if (PermissionsManager.can(message.channel, message.author, permission=PERMISSIONS.SERVER_ADMIN) and
                         (first_word == SlowMode.command or first_word in SlowMode.aliases)):
                     return
 
@@ -198,7 +198,7 @@ class SlowList(Command):
                     "timeout": val.interval,
                 }
 
-        if self.invoker.id in slowed_users.keys() and not Permissions.can(self.source_channel, self.invoker, Permissions.SERVER_ADMIN):
+        if self.invoker.id in slowed_users.keys() and not PermissionsManager.can(self.source_channel, self.invoker, PERMISSIONS.SERVER_ADMIN):
             self.response = None
             return
         else:

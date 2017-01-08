@@ -84,7 +84,7 @@ class SlashBot(discord.Client):
         super().run(config.GLOBAL["credentials"]["discord"]["token"])
 
     def log(self, msg):
-        self.send_message(config.GLOBAL["discord"]["log_channel_id"])
+        self.send_message(config.GLOBAL["credentials"]["discord"]["log_channel_id"])
 
     async def activate_modules(self):
         for cmd in CoreFunctions.__dict__.values():
@@ -169,6 +169,9 @@ class SlashBot(discord.Client):
         self.commands_map = {}
         logging.info("Activating modules")
         await self.activate_modules()
+
+        discord.opus.load_opus("../opus/libopus-0")
+        logging.info("Opus loaded is {}".format(discord.opus.is_loaded()))
 
     async def on_message(self, message):
         if message.channel.id in self._channel_message_subscriptions.keys():
@@ -388,13 +391,13 @@ class CoreFunctions(object):
     class InviteLink(Command):
         command = "invite"
         aliases = ["inv", "invitelink", "add", "addlink", ]
-        required_permissions = [Permissions.BOT_OWNER, ]
+        required_permissions = [PERMISSIONS.BOT_OWNER, ]
         silent_permissions = True
 
         @overrides(Command)
         async def make_response(self):
             await super().make_response()
-            self.response = config.GLOBAL["discord"]["invite_link"]
+            self.response = config.GLOBAL["credentials"]["discord"]["invite_link"]
 
     class CommandsList(Command):
         command = "commands"

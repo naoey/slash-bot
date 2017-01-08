@@ -39,3 +39,7 @@ def uid_from_mention(mention):
         # Discord silliness for users with nicknames
         uid = uid[1:]
     return uid
+
+
+def string_compare(string1, string2):
+    return string1.lower() == string2.lower()

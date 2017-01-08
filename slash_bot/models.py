@@ -98,6 +98,12 @@ class OsuUser(SlashBotDatabase):
     last_update_data = TextField(null=True)
     last_updated = DateTimeField(null=True)
 
+
+class MusicConfiguration(SlashBotDatabase):
+    server = ForeignKeyField(Server, related_name="musicconf_server", primary_key=True)
+    default_channel = ForeignKeyField(Channel, related_name="musicconf_default_channel")
+    last_modified = DateTimeField(help_text="The date this setting was last modified")
+
 db.create_tables([
     User,
     Server,
@@ -107,6 +113,7 @@ db.create_tables([
     RiotStaticData,
     ScheduledCommand,
     OsuUser,
+    MusicConfiguration,
 ], safe=True)
 
 logging.debug("Created tables")

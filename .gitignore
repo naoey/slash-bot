@@ -8,6 +8,9 @@ Icon*
 __pycache__/
 *.pyc
 
+# IDE crud
+.idea
+
 # Bot dumps
 logs/
 build/

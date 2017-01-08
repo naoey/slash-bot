@@ -8,10 +8,19 @@ Created on 2016-10-12
 import logging
 import datetime
 
+from enum import Enum
+
 from errors import *
 from models import *
 
 logger = logging.getLogger(__name__)
+
+
+class PERMISSIONS(Enum):
+    BOT_OWNER = 0
+    SERVER_OWNER = 1
+    BOT_ADMIN = 2
+    SERVER_ADMIN = 3
 
 
 class Command(object):
@@ -100,7 +109,7 @@ class Command(object):
 
         found_permission = False if len(self.required_permissions) > 0 else True
         for each in self.required_permissions:
-            if Permissions.can(self.source_channel, self.invoker, permission=each):
+            if PermissionsManager.can(self.source_channel, self.invoker, permission=each):
                 found_permission = True
                 break
 
@@ -119,12 +128,7 @@ class Command(object):
             await callback(self.response)
 
 
-class Permissions(object):
-    BOT_OWNER = 0
-    SERVER_OWNER = 1
-    BOT_ADMIN = 2
-    SERVER_ADMIN = 3
-
+class PermissionsManager(object):
     @staticmethod
     def can(channel, user, permission=None, role=None):
         """Returns true if a user has a particular permission on a channel.
@@ -154,9 +158,9 @@ class Permissions(object):
 
         if permission is None:
             return role_permission
-        if permission == Permissions.BOT_OWNER:
-            return role_permission and user.id == config.GLOBAL["discord"]["owner_id"]
-        if permission == Permissions.SERVER_OWNER:
+        if permission == PERMISSIONS.BOT_OWNER:
+            return role_permission and user.id == config.GLOBAL["credentials"]["discord"]["owner_id"]
+        if permission == PERMISSIONS.SERVER_OWNER:
             return role_permission and user.id == channel.server.owner.id
-        if permission == Permissions.SERVER_ADMIN:
+        if permission == PERMISSIONS.SERVER_ADMIN:
             return role_permission and user.permissions_in(channel).administrator
